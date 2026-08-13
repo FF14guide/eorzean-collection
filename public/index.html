@@ -404,6 +404,96 @@
         color: var(--ice);
         font: 700 14px var(--mono);
       }
+      .collection-summary {
+        display: none;
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid var(--edge-soft);
+        border-radius: var(--r);
+        background: rgba(27, 20, 64, 0.45);
+      }
+      .collection-summary.show {
+        display: block;
+      }
+      .collection-summary-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+        color: var(--mist);
+        font: 11px var(--mono);
+      }
+      .collection-summary-head b {
+        color: var(--foam);
+        font-size: 12px;
+      }
+      .summary-groups {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .summary-group {
+        min-width: 0;
+      }
+      .summary-group-title {
+        display: block;
+        margin: 0 0 6px 2px;
+        color: var(--dim);
+        font: 10px var(--mono);
+        letter-spacing: 0.07em;
+      }
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+        gap: 7px;
+      }
+      .summary-progress {
+        min-width: 0;
+        padding: 8px 9px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: rgba(8, 6, 20, 0.38);
+      }
+      .summary-progress .summary-name {
+        display: block;
+        overflow: hidden;
+        color: var(--mist);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .summary-progress strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--foam);
+        font: 700 13px var(--mono);
+      }
+      .summary-progress small {
+        color: var(--amber);
+        font: 10px var(--mono);
+      }
+      .summary-progress i {
+        display: block;
+        height: 4px;
+        margin-top: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--edge-soft);
+      }
+      .summary-progress i::after {
+        content: "";
+        display: block;
+        width: var(--rate, 0%);
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          var(--ice),
+          var(--amethyst),
+          var(--amber)
+        );
+      }
       .grid.compact {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 7px;
@@ -685,40 +775,26 @@
       }
       @media (min-width: 1060px) {
         .controls {
-          display: grid;
-          grid-template-columns: repeat(12, minmax(0, 1fr));
+          display: flex;
           align-items: center;
+          gap: 9px;
         }
-        .tabs {
-          grid-column: 1/4;
-        }
-        #stateSeg {
-          grid-column: 4/7;
-        }
-        #viewSeg {
-          grid-column: 7/10;
+        .tabs,
+        .seg {
+          flex: 0 0 auto;
+          width: max-content;
         }
         .searchbox {
-          grid-column: 10/13;
-          width: 100%;
+          flex: 1 1 240px;
+          min-width: 220px;
+          width: auto;
         }
-        .controls select:nth-of-type(1) {
-          grid-column: 10/13;
-        }
-        .controls select:nth-of-type(2) {
-          grid-column: 1/4;
-        }
-        .controls select:nth-of-type(3) {
-          grid-column: 4/7;
-        }
-        .controls select:nth-of-type(4) {
-          grid-column: 7/10;
-        }
-        .controls select:nth-of-type(5) {
-          grid-column: 10/13;
+        .controls select {
+          flex: 0 1 170px;
+          min-width: 132px;
         }
         .count {
-          grid-column: 1/-1;
+          flex: 1 0 100%;
           margin-left: 0;
           white-space: nowrap;
           text-align: right;
@@ -748,6 +824,11 @@
         }
         .grid {
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        }
+      }
+      @media (max-width: 1059px) {
+        .collection-summary .summary-groups {
+          grid-template-columns: 1fr;
         }
       }
       @media (max-width: 780px) {
@@ -1031,6 +1112,11 @@
           表示する「所持率」は、FFXIV
           Collectに登録された公開キャラクターのサンプルに基づく値です。全プレイヤーの公式統計ではありません。アチーブメントは公開設定の影響で、特にサンプルが小さくなります。
         </div>
+        <section
+          class="collection-summary"
+          id="collectionSummary"
+          aria-label="マウント・ミニオンの条件別取得状況"
+        ></section>
         <section
           class="achievement-summary"
           id="achievementSummary"
@@ -1518,6 +1604,90 @@
             text,
           };
         }
+        function expansionInfo(record) {
+          const major = Number(String(record.patch || "").split(".")[0]);
+          const labels = {
+            2: "新生エオルゼア",
+            3: "蒼天のイシュガルド",
+            4: "紅蓮のリベレーター",
+            5: "漆黒のヴィランズ",
+            6: "暁月のフィナーレ",
+            7: "黄金のレガシー",
+          };
+          return {
+            key: Number.isFinite(major) && major > 0 ? String(major) : "other",
+            label:
+              labels[major] || (major ? `Patch ${major}.x` : "パッチ未設定"),
+            order: Number.isFinite(major) && major > 0 ? major : 99,
+          };
+        }
+        function collectionSummaryCard(row) {
+          const rate = row.total ? (row.owned / row.total) * 100 : 0;
+          return `<article class="summary-progress"><span class="summary-name">${esc(row.label)}</span><strong>${n(row.owned)} / ${n(row.total)}</strong><small>${rate.toFixed(1)}%</small><i style="--rate:${rate.toFixed(2)}%"></i></article>`;
+        }
+        function renderCollectionSummary(records, owned) {
+          const summary = el("collectionSummary");
+          const ready =
+            (state.kind === "mounts" || state.kind === "minions") &&
+            state.status.collections === "complete";
+          if (!ready) {
+            summary.classList.remove("show");
+            summary.innerHTML = "";
+            return;
+          }
+
+          const expansions = new Map();
+          records.forEach((record) => {
+            const info = expansionInfo(record);
+            const row = expansions.get(info.key) || {
+              ...info,
+              total: 0,
+              owned: 0,
+            };
+            row.total += 1;
+            if (owned.has(record.id)) row.owned += 1;
+            expansions.set(info.key, row);
+          });
+          const profileRows = [
+            {
+              label: "課金要素なし",
+              matches: (record) => !profile(record).paid,
+            },
+            {
+              label: "MB購入可",
+              matches: (record) => profile(record).market,
+            },
+            {
+              label: "アチーブ／クエスト報酬",
+              matches: (record) =>
+                (record.sources || []).some((source) =>
+                  ["Achievement", "Quest"].includes(source.type),
+                ),
+            },
+          ].map((definition) => {
+            const selected = records.filter(definition.matches);
+            return {
+              label: definition.label,
+              total: selected.length,
+              owned: selected.filter((record) => owned.has(record.id)).length,
+            };
+          });
+          const kindLabel = state.kind === "mounts" ? "マウント" : "ミニオン";
+          const totalOwned = records.filter((record) =>
+            owned.has(record.id),
+          ).length;
+          summary.innerHTML =
+            `<div class="collection-summary-head"><b>${kindLabel}の条件別取得状況</b><span>合計 ${n(totalOwned)} / ${n(records.length)}</span></div>` +
+            `<div class="summary-groups"><section class="summary-group"><span class="summary-group-title">拡張別</span><div class="summary-cards">${[
+              ...expansions.values(),
+            ]
+              .sort((a, b) => a.order - b.order)
+              .map(collectionSummaryCard)
+              .join(
+                "",
+              )}</div></section><section class="summary-group"><span class="summary-group-title">入手条件別</span><div class="summary-cards">${profileRows.map(collectionSummaryCard).join("")}</div></section></div>`;
+          summary.classList.add("show");
+        }
         function ownershipRateTag(x) {
           const value = String(x.owned || "").trim();
           return value
@@ -1624,6 +1794,12 @@
             state.filter.sort = "patch";
             el("sort").value = "patch";
           }
+          if (isAch && status.achievements !== "complete") {
+            renderAchievementSummary([], new Set());
+            renderCollectionSummary([], new Set());
+          } else if (!isAch) {
+            renderAchievementSummary([], new Set());
+          }
           if (isAch && status.achievements === "loading") {
             el("count").textContent = "";
             el("grid").innerHTML =
@@ -1643,6 +1819,7 @@
           if (isAch) achievementGenreOptions(records);
           else sourceOptions(records);
           renderAchievementSummary(records, owned);
+          renderCollectionSummary(records, owned);
           let list = records.filter((x) => {
             const have = owned.has(x.id);
             if (

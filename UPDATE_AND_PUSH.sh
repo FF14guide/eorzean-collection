@@ -9,7 +9,7 @@ TARGET_DIR="${1:-$DEFAULT_TARGET}"
 
 if [[ ! -d "$TARGET_DIR" ]]; then
   echo "エラー: 更新先フォルダが見つかりません: $TARGET_DIR" >&2
-  echo "例: ./UPDATE_AND_PUSH.sh /c/Users/mojai/Downloads/eorzean-collection" >&2
+  echo "例: bash UPDATE_AND_PUSH.sh /c/Users/mojai/Downloads/eorzean-collection" >&2
   exit 1
 fi
 
@@ -63,7 +63,7 @@ if [[ ! "$ANSWER" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-git -C "$TARGET_DIR" commit -m "feat: add market availability and paid collection filters"
+git -C "$TARGET_DIR" commit -m "fix: restore original branding and acquisition rate rings"
 git -C "$TARGET_DIR" push origin "$BRANCH"
 
 echo

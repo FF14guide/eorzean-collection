@@ -23,6 +23,7 @@
 | `tests/verify-icon-pixel-match.py` | マウント／ミニオンの視覚シグネチャ照合を検証するテスト。 |
 | `tests/verify-lodestone-achievements.mjs` | 公開アチーブメント一覧のページ数と達成ID総数を検証するテスト。 |
 | `tests/verify-achievement-chunks.mjs` | 10ページ単位のアチーブメント取得フローを検証するテスト。 |
+| `RESTORATION_REVIEW.md` | 元のブランドUIを基準にしたファビコン、SVGロゴ、入手率リングの復元確認記録。 |
 
 ## デプロイ
 
@@ -30,10 +31,10 @@ CloudflareのWorker名が `eorzean-collection` の場合、リポジトリ直下
 
 ```bash
 # 例: Git Bash
-cp -r eorzean_collection_enhanced_filters/. eorzean-collection/
+cp -r eorzean-collection-update/. eorzean-collection/
 cd eorzean-collection
 git add -A
-git commit -m "feat: add market availability and paid collection filters"
+git commit -m "fix: restore original branding and acquisition rate rings"
 git push
 ```
 
@@ -64,6 +65,17 @@ node tests/verify-collection-classification.mjs
 ## 運用上の注意
 
 アチーブメントは一括で全ページを取得せず、Workerが一回につき最大10ページを返し、ブラウザが完了まで統合します。結果はWorker側で1時間キャッシュされます。画像プロキシは `lds-img.finalfantasyxiv.com/itemicon/` のHTTPS PNGだけを許可し、任意URLの取得を拒否します。ロードストーンのコレクション結果は15分、アイコン画像は7日間キャッシュします。
+
+## 復元したブランドUI
+
+機能追加前に存在した次のUI要素を復元しています。登録不要の照合、アチーブメントの段階取得、追加フィルターとの両立を保っています。
+
+| 復元要素 | 実装 |
+|---|---|
+| ファビコン | 元サイトと同じ水晶モチーフのインラインSVGを `rel="icon"` として設定。 |
+| トップロゴ | 水晶マークのSVG、サイト名、`EORZEAN COLLECTION` のサブタイトルを含むブランドヘッダー。 |
+| 入手率リング | 検索後にマウント、ミニオン、アチーブメントの所持率と件数を3つのアニメーションSVGリングで表示。アチーブメント取得中は進行状態を明示。 |
+| 結果ボード | 元の水晶紫・獲得金の配色、上端のグラデーションライン、キャラクターカードの構造を復元。 |
 
 ## マウント・ミニオンの追加フィルター
 

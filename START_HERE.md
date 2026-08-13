@@ -1,6 +1,6 @@
 # 最初にここを確認してください
 
-このフォルダは **更新ファイル** です。Gitの履歴とリモート接続情報を保つため、既存の `eorzean-collection` フォルダは削除しません。
+このフォルダは、**ブランドUI復元版の更新ファイル** です。ファビコン、SVGロゴ、入手率リングを復元し、登録不要検索と追加フィルターを保持しています。Gitの履歴とリモート接続情報を保つため、既存の `eorzean-collection` フォルダは削除しません。
 
 展開後のDownloadsフォルダは、次のような状態にしてください。
 
@@ -16,7 +16,7 @@ C:\Users\mojai\Downloads\
 2. 次の1行を貼り付けて実行します。
 
 ```bash
-./UPDATE_AND_PUSH.sh
+bash UPDATE_AND_PUSH.sh
 ```
 
 3. スクリプトは、既存リポジトリの未コミット変更・ブランチ・リモートを確認し、最新版を取得してから更新ファイルを反映します。
@@ -25,7 +25,7 @@ C:\Users\mojai\Downloads\
 > `eorzean-collection` フォルダが別の場所にある場合は、次のように更新先を指定してください。
 >
 > ```bash
-> ./UPDATE_AND_PUSH.sh /c/Users/mojai/実際の場所/eorzean-collection
+> bash UPDATE_AND_PUSH.sh /c/Users/mojai/実際の場所/eorzean-collection
 > ```
 
 ## 重要な注意

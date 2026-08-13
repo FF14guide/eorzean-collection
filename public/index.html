@@ -384,6 +384,91 @@
         font: 11px var(--mono);
         color: var(--dim);
       }
+      .achievement-summary {
+        display: none;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid var(--edge-soft);
+        border-radius: var(--r);
+        background: rgba(27, 20, 64, 0.45);
+      }
+      .achievement-summary.show {
+        display: grid;
+      }
+      .achievement-summary-head {
+        grid-column: 1/-1;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--mist);
+        font: 11px var(--mono);
+      }
+      .achievement-summary-head b {
+        color: var(--foam);
+        font-size: 12px;
+      }
+      .achievement-progress {
+        min-width: 0;
+        padding: 9px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: rgba(8, 6, 20, 0.38);
+        color: var(--foam);
+        text-align: left;
+      }
+      .achievement-progress:hover,
+      .achievement-progress:focus-visible {
+        border-color: var(--amethyst);
+        outline: none;
+      }
+      .achievement-progress.on {
+        border-color: rgba(242, 193, 94, 0.65);
+        background: linear-gradient(
+          135deg,
+          rgba(242, 193, 94, 0.12),
+          rgba(27, 20, 64, 0.55)
+        );
+      }
+      .achievement-progress .genre-name {
+        display: block;
+        overflow: hidden;
+        color: var(--mist);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .achievement-progress .genre-count {
+        display: block;
+        margin-top: 2px;
+        color: var(--foam);
+        font: 700 14px var(--mono);
+      }
+      .achievement-progress .genre-rate {
+        color: var(--amber);
+        font: 10px var(--mono);
+      }
+      .achievement-progress .genre-track {
+        display: block;
+        height: 4px;
+        margin-top: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--edge-soft);
+      }
+      .achievement-progress .genre-fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(
+          90deg,
+          var(--ice),
+          var(--amethyst),
+          var(--amber)
+        );
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -853,6 +938,11 @@
           表示する「所持率」は、FFXIV
           Collectに登録された公開キャラクターのサンプルに基づく値です。全プレイヤーの公式統計ではありません。アチーブメントは公開設定の影響で、特にサンプルが小さくなります。
         </div>
+        <section
+          class="achievement-summary"
+          id="achievementSummary"
+          aria-label="アチーブメントのジャンル別取得状況"
+        ></section>
         <div class="controls">
           <div class="tabs" id="kindTabs">
             <button class="on" data-kind="mounts">マウント</button
@@ -1233,6 +1323,56 @@
               .join("");
           el("source").value = state.filter.source;
         }
+        function renderAchievementSummary(records, owned) {
+          const summary = el("achievementSummary");
+          const ready =
+            state.kind === "achievements" &&
+            state.status.achievements === "complete";
+          if (!ready) {
+            summary.classList.remove("show");
+            summary.innerHTML = "";
+            return;
+          }
+
+          const groups = new Map();
+          records.forEach((x) => {
+            const genre = (x.type || {}).name || "その他";
+            const group = groups.get(genre) || { genre, total: 0, earned: 0 };
+            group.total += 1;
+            if (owned.has(x.id)) group.earned += 1;
+            groups.set(genre, group);
+          });
+
+          const total = records.length;
+          const earned = records.reduce(
+            (count, x) => count + (owned.has(x.id) ? 1 : 0),
+            0,
+          );
+          const rows = [
+            { genre: "all", label: "すべて", total, earned },
+            ...[...groups.values()]
+              .sort((a, b) => a.genre.localeCompare(b.genre, "ja"))
+              .map((group) => ({ ...group, label: group.genre })),
+          ];
+
+          summary.innerHTML =
+            `<div class="achievement-summary-head"><b>ジャンル別の取得状況</b><span>合計 ${n(earned)} / ${n(total)}</span></div>` +
+            rows
+              .map((row) => {
+                const rate = row.total ? (row.earned / row.total) * 100 : 0;
+                const selected = state.filter.source === row.genre;
+                return `<button type="button" class="achievement-progress ${selected ? "on" : ""}" data-genre="${esc(row.genre)}" aria-pressed="${selected}"><span class="genre-name">${esc(row.label)}</span><strong class="genre-count">${n(row.earned)} / ${n(row.total)}</strong><span class="genre-rate">${rate.toFixed(1)}%</span><span class="genre-track"><i class="genre-fill" style="width:${rate.toFixed(2)}%"></i></span></button>`;
+              })
+              .join("");
+          summary.classList.add("show");
+          summary.querySelectorAll("[data-genre]").forEach((button) =>
+            button.addEventListener("click", () => {
+              state.filter.source = button.dataset.genre;
+              el("source").value = state.filter.source;
+              rerender();
+            }),
+          );
+        }
         function profile(x) {
           const sources = x.sources || [],
             premium = sources.filter((s) => s.type === "Premium"),
@@ -1366,6 +1506,7 @@
             f = state.filter;
           if (isAch) achievementGenreOptions(records);
           else sourceOptions(records);
+          renderAchievementSummary(records, owned);
           let list = records.filter((x) => {
             const have = owned.has(x.id);
             if (

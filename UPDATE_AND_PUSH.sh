@@ -63,7 +63,7 @@ if [[ ! "$ANSWER" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-git -C "$TARGET_DIR" commit -m "fix: restore original branding and acquisition rate rings"
+git -C "$TARGET_DIR" commit -m "feat: display FFXIV Collect ownership rates"
 git -C "$TARGET_DIR" push origin "$BRANCH"
 
 echo

@@ -6,6 +6,11 @@
 |---|---|---|
 | Worker構文 | `node --check worker.js` | 成功 |
 | 統合クライアント構文 | `node --check` で `public/index.html` 内のスクリプトを検査 | 成功 |
+| 所持率表示UI | 静的検証 | マウント、ミニオン、アチーブメントすべてのカードに `FFXIV Collect所持率` タグと注意書きを追加 |
+| 所持率の並び替え | 静的検証 | 3種別共通で `FFXIV Collect所持率が低い順` を選べることを確認 |
+| マウント所持率 | `verify-ownership-rates.mjs` | 353件すべてに0〜96%の `owned` フィールドを確認 |
+| ミニオン所持率 | `verify-ownership-rates.mjs` | 583件すべてに0〜96%の `owned` フィールドを確認 |
+| アチーブメント所持率 | `verify-ownership-rates.mjs` | 3,946件すべてに0〜98%の `owned` フィールドを確認 |
 | ファビコン | 静的検証 | 元の水晶モチーフを用いた `rel="icon"` のインラインSVGを確認 |
 | トップロゴ | ローカルプレビュー | SVGの水晶マーク、サイト名、`EORZEAN COLLECTION` のサブタイトルを表示 |
 | 入手率リング | 静的検証 | マウント、ミニオン、アチーブメントのSVGリング、グラデーション、達成率アニメーションを確認 |

@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>エオルゼア蒐集録 — Eorzean Collection</title>
+<meta name="description" content="ロードストーンIDから、FFXIVのマウント・ミニオン・アチーブメントの所持／未所持をジャンル別に一覧化。報酬称号・報酬アイテム・期間限定の判別、4言語対応。エオルゼア釣り図鑑の姉妹サイト。">
+<meta name="theme-color" content="#0F0A20">
+<!-- ▼ サブドメイン公開時はこのドメインを実際のものに置き換えてください（例：collection.eorzeanfishing.com） -->
+<link rel="canonical" href="https://collection.eorzeanfishing.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="エオルゼア蒐集録">
+<meta property="og:title" content="エオルゼア蒐集録 — Eorzean Collection">
+<meta property="og:description" content="マウント・ミニオン・アチーブメントの所持状況をジャンル別に。エオルゼア釣り図鑑の姉妹サイト。">
+<meta property="og:url" content="https://collection.eorzeanfishing.com/">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230F0A20'/%3E%3Cpath d='M16 5 L25 13 L16 27 L7 13 Z' fill='none' stroke='%23BA8CF4' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M11 13 h10 M16 5 v22' stroke='%23F2C15E' stroke-width='1.4' opacity='.85'/%3E%3C/svg%3E">
+<style>
+/* ══════════════════════════════════════════════════════════
+   トークン
+   釣り図鑑と同じ「FF14ウィンドウ」の作法。色だけ水晶紫に振る。
+   蒐集の紫水晶と、獲得＝宝物の金。
+   ══════════════════════════════════════════════════════════ */
+:root{
+  --ink:#0F0A20;        /* いちばん奥 */
+  --deep:#1B1440;       /* パネル */
+  --deeper:#150F30;     /* 沈んだ面 */
+  --raise:#271C52;      /* 浮いた面 */
+  --edge:#48376F;       /* 境界 */
+  --edge-soft:#2C2150;
+  --foam:#F2EFFC;       /* 本文 */
+  --mist:#B4A7DA;       /* 補助 */
+  --dim:#8074AE;        /* さらに弱い */
+
+  --amethyst:#BA8CF4;   /* 主役。紫水晶（釣り図鑑の金にあたる位置） */
+  --amethyst-2:#9B63E6;
+  --amethyst-dim:#6A4CA0;
+  --magenta:#F58FD0;    /* 現在地・強調（釣り図鑑の水晶青にあたる位置） */
+  --ice:#83B6FF;        /* 中立の情報 */
+  --amber:#F2C15E;      /* 獲得＝宝物 */
+  --amber-soft:#F7D48C;
+  --coral:#FF8FA6;      /* 期間限定・注意 */
+  --owned-glow:rgba(242,193,94,.42);
+
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Roboto Mono","Noto Sans Mono CJK JP",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",sans-serif;
+
+  --r:8px; --r-sm:5px; --pill:999px;
+  --header-h:60px;
+  --shadow:0 18px 50px -18px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  min-height:100%;
+  background:
+    radial-gradient(1200px 620px at 12% -8%, #241A4D 0%, transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, #34215A 0%, transparent 58%),
+    radial-gradient(760px 500px at 50% 118%, rgba(245,143,208,.07), transparent 60%),
+    var(--ink);
+  background-attachment:fixed;
+  color:var(--foam); font-family:var(--sans); font-size:14px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+a{color:var(--amethyst)}
+::selection{background:var(--amethyst);color:var(--ink)}
+:focus-visible{outline:2px solid var(--amethyst);outline-offset:2px}
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--edge-soft);border-radius:9px}
+*::-webkit-scrollbar-thumb:hover{background:var(--edge)}
+
+.eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--amethyst);opacity:.9}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+.grow{flex:1}
+.hidden{display:none !important}
+
+/* ── サイトヘッダー（釣り図鑑と同じ骨格） ─────────────── */
+header.site{
+  display:flex;align-items:center;gap:16px;
+  padding:0 18px;height:var(--header-h);
+  background:linear-gradient(180deg,#241A4D,#160F34);
+  border-bottom:1px solid var(--edge);
+  position:sticky;top:0;z-index:30;
+}
+header.site::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--amethyst) 18%,var(--amethyst) 82%,transparent);opacity:.55;
+}
+.brand{display:flex;align-items:center;gap:10px;flex:none;text-decoration:none;color:var(--foam)}
+.brand:hover .mark{transform:scale(1.06)}
+.brand .mark{
+  width:30px;height:30px;border-radius:var(--r-sm);display:grid;place-items:center;flex:none;
+  background:linear-gradient(145deg,var(--amethyst),#8A5AD8);
+  box-shadow:0 2px 12px rgba(186,140,244,.32);transition:transform .12s;
+}
+.brand .mark svg{width:18px;height:18px;display:block}
+.brand b{font-size:17px;font-weight:800;letter-spacing:.03em;line-height:1.15}
+.brand .sub{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--amethyst);opacity:.8}
+.navlink{
+  font-size:11.5px;font-weight:600;letter-spacing:.02em;text-decoration:none;
+  padding:6px 13px;border:1px solid var(--edge);border-radius:var(--pill);color:var(--mist);white-space:nowrap;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.navlink:hover{border-color:var(--amethyst);color:var(--foam);background:rgba(186,140,244,.10)}
+.langsel{
+  background:rgba(8,6,20,.6);border:1px solid var(--edge-soft);border-radius:var(--pill);
+  padding:6px 11px;font-size:11.5px;color:var(--mist);cursor:pointer;
+}
+.langsel:hover{border-color:var(--amethyst);color:var(--foam)}
+.langsel:focus{outline:none;border-color:var(--amethyst)}
+
+/* ── ヒーロー ─────────────────────────────────────────── */
+.hero{padding:40px 0 8px;text-align:center}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:11px}
+.hero .eyebrow::before,.hero .eyebrow::after{content:"";width:30px;height:1px;background:linear-gradient(90deg,transparent,var(--amethyst))}
+.hero .eyebrow::after{background:linear-gradient(90deg,var(--amethyst),transparent)}
+h1{font-size:clamp(25px,4.4vw,42px);font-weight:800;letter-spacing:.01em;line-height:1.16;margin:13px 0 0;color:var(--foam)}
+.lede{max-width:680px;margin:14px auto 0;color:var(--mist);font-size:14.5px}
+
+.search{
+  margin:26px auto 0;max-width:720px;background:linear-gradient(180deg,var(--deep),var(--deeper));
+  border:1px solid var(--edge);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden;text-align:left;
+}
+.search::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,var(--amethyst),var(--magenta),transparent);opacity:.7}
+.search label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:0 0 9px}
+.field{display:flex;gap:10px;flex-wrap:wrap}
+.field input{
+  flex:1 1 320px;min-width:0;background:rgba(8,6,20,.6);border:1px solid var(--edge-soft);color:var(--foam);
+  border-radius:var(--r);padding:12px 14px;font-size:16px;transition:border-color .15s,box-shadow .15s;
+}
+.field input::placeholder{color:var(--dim)}
+.field input:focus{outline:none;border-color:var(--amethyst);box-shadow:0 0 0 3px rgba(186,140,244,.16)}
+.btn{
+  font-weight:700;font-size:14px;letter-spacing:.02em;padding:12px 24px;border-radius:var(--r);white-space:nowrap;
+  color:var(--ink);background:linear-gradient(145deg,var(--amethyst),var(--amethyst-2));
+  box-shadow:0 2px 12px rgba(186,140,244,.25);transition:filter .12s,transform .12s;
+}
+.btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(1px)} .btn[disabled]{opacity:.55;cursor:progress}
+.hint{margin:12px 2px 0;font-size:12px;color:var(--dim)} .hint a{color:var(--mist)}
+
+.msg{max-width:720px;margin:16px auto 0;border-radius:var(--r);padding:15px 17px;font-size:14px;display:none}
+.msg.show{display:block}
+.msg.err{background:rgba(255,143,166,.10);border:1px solid rgba(255,143,166,.4);color:#ffc7d1}
+.msg.info{background:rgba(131,182,255,.09);border:1px solid rgba(131,182,255,.34);color:#cfe0ff}
+.msg .btn{margin-top:12px;display:inline-block;padding:9px 18px;font-size:13px}
+
+/* ── 結果ボード ───────────────────────────────────────── */
+.board{display:none;margin-top:34px}
+.board.show{display:block;animation:rise .5s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.charcard{
+  display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+  background:linear-gradient(180deg,var(--deep),var(--deeper));border:1px solid var(--edge);
+  border-radius:var(--r);padding:20px 24px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.charcard::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,var(--amethyst) 20%,var(--amethyst) 80%,transparent);opacity:.5}
+.portrait{width:70px;height:70px;border-radius:var(--r-sm);object-fit:cover;flex:none;border:1px solid var(--edge);background:var(--deeper)}
+.who{flex:1 1 200px;min-width:0}
+.who .name{font-size:23px;font-weight:800;letter-spacing:.02em}
+.who .meta{color:var(--mist);font-size:13px;margin-top:3px}
+.who .parsed{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.04em;margin-top:6px}
+.rings{display:flex;gap:16px;flex:none;flex-wrap:wrap}
+.ring{display:flex;flex-direction:column;align-items:center;gap:5px;width:96px}
+.ring svg{transform:rotate(-90deg)}
+.ring .track{fill:none;stroke:var(--edge-soft);stroke-width:9}
+.ring .fill{fill:none;stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1)}
+.ring .pct{font-family:var(--mono);font-weight:700;font-size:18px;fill:var(--foam)}
+.ring .pct.small{font-size:11px;fill:var(--mist)}
+.ring .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mist)}
+.ring .cnt{font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* ── 操作バー（釣り図鑑 .ctlbar の作法） ───────────────── */
+.controls{
+  margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:10px 12px;background:rgba(27,20,64,.55);border:1px solid var(--edge-soft);border-radius:var(--r);
+}
+.tabs{display:inline-flex;background:rgba(8,6,20,.5);border:1px solid var(--edge-soft);border-radius:var(--pill);padding:3px}
+.tabs button{border-radius:var(--pill);color:var(--mist);font-weight:700;font-size:13px;padding:7px 15px;letter-spacing:.02em;transition:.12s}
+.tabs button:hover{color:var(--foam)}
+.tabs button.on{background:linear-gradient(145deg,var(--amethyst),var(--magenta));color:var(--ink);box-shadow:0 2px 10px rgba(186,140,244,.28)}
+.seg{display:inline-flex;background:rgba(8,6,20,.5);border:1px solid var(--edge-soft);border-radius:var(--pill);padding:3px}
+.seg button{border-radius:var(--pill);color:var(--mist);font-weight:600;font-size:12.5px;padding:7px 13px;transition:.12s}
+.seg button:hover{color:var(--foam)}
+.seg button.on{background:var(--raise);color:var(--foam)}
+.seg button .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dot.g{background:var(--amber)} .dot.s{background:var(--dim)}
+#achFilters #limitBtn.on{background:rgba(255,143,166,.16);color:#ffc7d1}
+#achFilters #titleBtn.on{background:linear-gradient(145deg,var(--amber),var(--amber-soft));color:var(--ink)}
+select,.searchbox{
+  background:rgba(8,6,20,.6);border:1px solid var(--edge-soft);color:var(--foam);border-radius:var(--pill);
+  padding:8px 12px;font-size:12.5px;max-width:260px;
+}
+.searchbox{min-width:150px}
+select:hover,.searchbox:hover{border-color:var(--edge)}
+select:focus,.searchbox:focus{outline:none;border-color:var(--amethyst)}
+.count{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--dim);white-space:nowrap}
+
+/* ── ジャンル一覧チップ ───────────────────────────────── */
+.genrebar{margin-top:18px;display:flex;gap:9px;flex-wrap:wrap}
+.gchip{text-align:left;border:1px solid var(--edge-soft);background:rgba(27,20,64,.55);color:var(--foam);border-radius:var(--r);padding:9px 12px;min-width:116px;transition:transform .12s,border-color .12s}
+.gchip:hover{transform:translateY(-2px);border-color:var(--edge)}
+.gchip.on{border-color:var(--amethyst);box-shadow:0 0 0 2px rgba(186,140,244,.22) inset}
+.gchip .gn{font-weight:700;font-size:12.5px}
+.gchip .gc{font-family:var(--mono);font-size:10.5px;color:var(--mist);margin-top:2px}
+.gchip .bar{height:4px;border-radius:3px;background:var(--edge-soft);margin-top:7px;overflow:hidden}
+.gchip .bar span{display:block;height:100%;background:linear-gradient(90deg,var(--amethyst),var(--amber))}
+
+/* ── サブカテゴリ達成度バー ───────────────────────────── */
+.subbar{margin-top:14px}
+.smeter{background:linear-gradient(180deg,var(--deep),var(--deeper));border:1px solid var(--edge-soft);border-radius:var(--r);padding:12px 15px}
+.smhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:9px}
+.smname{font-weight:700;font-size:13px;color:var(--foam)}
+.smval{font-family:var(--mono);font-size:11.5px;color:var(--mist);white-space:nowrap}
+.smbar{height:9px;border-radius:5px;background:var(--edge-soft);overflow:hidden}
+.smbar span{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,var(--amethyst),var(--amber));transition:width .55s cubic-bezier(.2,.8,.2,1)}
+
+/* ── 一覧グリッド ─────────────────────────────────────── */
+.grid{margin-top:18px;display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(232px,1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+.item{display:flex;gap:12px;align-items:flex-start;padding:11px;background:rgba(27,20,64,.5);border:1px solid var(--edge-soft);border-radius:var(--r);content-visibility:auto;contain-intrinsic-size:100px;transition:transform .12s,border-color .12s}
+.item:hover{transform:translateY(-2px);border-color:var(--edge)}
+.item .ic{width:50px;height:50px;border-radius:var(--r-sm);flex:none;object-fit:cover;background:var(--deeper);border:1px solid var(--edge-soft);opacity:.32;filter:grayscale(.85) brightness(.82)}
+.item.owned{border-color:rgba(242,193,94,.42);background:linear-gradient(180deg,rgba(242,193,94,.10),rgba(242,193,94,.015)),rgba(27,20,64,.5)}
+.item.owned .ic{opacity:1;filter:none;border-color:rgba(242,193,94,.5);box-shadow:0 0 14px -3px var(--owned-glow)}
+.item .body{min-width:0;flex:1}
+.item .nm{font-weight:700;font-size:13.5px;line-height:1.35;word-break:break-word}
+.item.owned .nm{color:var(--amber-soft)}
+.item .desc{color:var(--mist);font-size:11.5px;margin-top:3px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.item .src{color:var(--mist);font-size:11.5px;margin-top:3px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.02em;padding:2px 8px;border-radius:var(--pill);background:rgba(8,6,20,.4);color:var(--mist);border:1px solid var(--edge-soft)}
+.tag.state{color:var(--ink);background:linear-gradient(145deg,var(--amber),var(--amber-soft));border:0;font-weight:800}
+.tag.miss{color:var(--dim)}
+.tag.mb{color:var(--ice);border-color:rgba(131,182,255,.35)}
+.tag.pt{color:var(--ice);background:rgba(131,182,255,.10);border-color:rgba(131,182,255,.3)}
+.tag.pts{color:var(--amber-soft);border-color:rgba(242,193,94,.35)}
+.tag.ttl{color:var(--ink);background:linear-gradient(145deg,var(--amber-soft),#FBE6B6);border:0;font-weight:800}
+.tag.itm{color:var(--magenta);border-color:rgba(245,143,208,.4)}
+.tag.lim{color:var(--coral);border-color:rgba(255,143,166,.4)}
+.empty{grid-column:1/-1;text-align:center;color:var(--mist);padding:46px 20px;font-size:14px}
+
+/* ── フッター ─────────────────────────────────────────── */
+footer{margin:52px 0 40px;text-align:center;color:var(--dim);font-size:12px;line-height:1.95}
+footer a{color:var(--mist)} .sep{color:var(--edge)}
+
+@media (max-width:560px){
+  header.site{gap:10px;padding:0 12px}
+  .brand b{font-size:15px}
+  .charcard{gap:16px;padding:16px} .rings{width:100%;justify-content:space-around}
+  .grid,.grid.wide{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .count{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <a class="brand" href="./" aria-label="エオルゼア蒐集録">
+    <span class="mark"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3 L20 9 L12 21 L4 9 Z" fill="#160F34" stroke="#160F34" stroke-width="1.4" stroke-linejoin="round"/><path d="M7.5 9 h9 M12 3 v18" stroke="#F2C15E" stroke-width="1.3" opacity=".9"/></svg></span>
+    <span class="ttl"><b>エオルゼア蒐集録</b><span class="sub">EORZEAN COLLECTION</span></span>
+  </a>
+  <span class="grow"></span>
+  <a class="navlink" href="https://eorzeanfishing.com/" title="姉妹サイト：エオルゼア釣り図鑑">エオルゼア釣り図鑑 →</a>
+  <select id="lang" class="langsel" aria-label="Language">
+    <option value="ja">日本語</option><option value="en">English</option>
+    <option value="de">Deutsch</option><option value="fr">Français</option>
+  </select>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <p class="eyebrow">Eorzea Collection Ledger</p>
+    <h1 id="h1"></h1>
+    <p class="lede" id="lede"></p>
+    <div class="search">
+      <label for="cid" id="lbl"></label>
+      <div class="field">
+        <input id="cid" type="text" inputmode="numeric" autocomplete="off" spellcheck="false">
+        <button class="btn" id="go"></button>
+      </div>
+      <p class="hint" id="hint"></p>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <main class="board" id="board">
+    <section class="charcard" id="charcard"></section>
+
+    <div class="controls">
+      <div class="tabs" id="tabs">
+        <button data-tab="mounts" class="on"></button>
+        <button data-tab="minions"></button>
+        <button data-tab="achievements"></button>
+      </div>
+      <div class="seg" id="stateSeg">
+        <button data-state="all" class="on"></button>
+        <button data-state="owned"><span class="dot g"></span><span class="t"></span></button>
+        <button data-state="missing"><span class="dot s"></span><span class="t"></span></button>
+      </div>
+      <div class="seg hidden" id="achFilters">
+        <button id="limitBtn"></button>
+        <button id="titleBtn"></button>
+      </div>
+      <input class="searchbox" id="q" type="search" autocomplete="off">
+      <select id="source"></select>
+      <select id="subcat" class="hidden"></select>
+      <select id="sort"></select>
+      <span class="grow"></span>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div class="msg info hidden" id="achNotice" style="max-width:none;margin-top:18px"></div>
+    <div class="genrebar hidden" id="genrebar"></div>
+    <div class="subbar hidden" id="subbar"></div>
+
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API="https://ffxivcollect.com/api", TTL=864e5, CV="v2";
+  // 所持状況の取得元： "lodestone"＝自前Pages Function経由でロードストーン直読み（FFXIV Collect登録不要）／ "ffxivcollect"＝従来
+  var SRC="lodestone", LFN="/api/lodestone";
+  var el=function(id){return document.getElementById(id)};
+  var REWARD_COLLECTIONS=["orchestrions","emotes","bardings","hairstyles","frames","fashions","facewear"];
+
+  var TL_IDS=new Set([310,311,312,1166,1419,1420,1421,1422,1423,1424,1425,1426,1427,1428,1429,1430,1431,1432,
+    1734,1735,1736,1737,1743,1744,1745,1746,1757,1758,1759,1760,1761,1762,1763,1764,1765,1766,1767,1768,1769,
+    1770,1771,1772,1773,2007,2008,2009,2010,2011,2012,2110,2111,2112,2113,2114,2487,2488,2712,2713,2785,2786,
+    3083,3084,3085,3086,3087,3088,3276,3277,3278,3279,3280,3837,3838,3839,3840,3841,3404,3405,3406,3407,3900]);
+  var TL_CATS=new Set([8,38,54,55,56,57,58,59,60,61]);
+
+  var T={
+    ja:{h1:'マウント / ミニオン / アチーブメント<br>所持チェッカー',
+      lede:'ロードストーンIDを入力すると、所持済み・未所持のマウント／ミニオンと、ジャンル別のアチーブメント達成状況を一覧化します。データは FFXIV Collect のAPIからその都度取得するため、パッチ更新に自動追従します。',
+      lbl:'ロードストーンID（またはキャラクターページのURL）',
+      ph:'例：1143042 / https://jp.finalfantasyxiv.com/lodestone/character/1143042/',
+      hint:'IDはロードストーンのキャラクターページURL末尾の数字です。「マイキャラクター」→ URL末尾を確認、または <a href="https://jp.finalfantasyxiv.com/lodestone/character/" target="_blank" rel="noopener">ロードストーンで名前検索</a> してください。',
+      btn:'調べる',btnL:'取得中…',
+      notFound:'このキャラクターはまだ FFXIV Collect に登録されていないようです。一度だけ登録（ロードストーンの読み込み）を行うと、以降このツールで確認できます。',register:'FFXIV Collect で登録する',
+      charPriv:'このキャラクターはロードストーンで非公開設定になっているため取得できません。公開設定に変更後、時間をおいて再度お試しください。',
+      err:'データを取得できませんでした（{e}）。IDが正しいか、時間をおいて再度お試しください。ロードストーン側のメンテナンス中は取得できないことがあります。',
+      idErr:'IDを認識できませんでした。ロードストーンページURL末尾の数字、または数字のみを入力してください。',
+      tMounts:'マウント',tMinions:'ミニオン',tAch:'アチーブメント',
+      sAll:'すべて',sOwned:'所持済み',sMiss:'未所持',
+      qCol:'名前で絞り込み',qAch:'名前・達成条件で絞り込み',srcAll:'入手先：すべて',
+      soPatch:'パッチ新しい順',soPatchA:'パッチ古い順',soName:'名前順',soRar:'所持率が低い順',soPts:'ポイント高い順',
+      rMounts:'マウント',rMinions:'ミニオン',rAch:'アチーブ',priv:'非公開',privSub:'公開設定が必要',
+      achNotice:'このキャラクターはアチーブメントをロードストーンで<strong>非公開</strong>にしているため、所持状況を取得できません。<br>ゲーム内の「キャラクターコンフィグ」でアチーブメントの公開を有効にし、ロードストーンへ反映されてから再取得してください（全項目が未取得として表示されています）。',
+      oCol:'所持済み',mCol:'未所持',oAch:'取得済み',mAch:'未取得',
+      market:'マケボ可',rar:'所持率 ',title:'称号',item:'アイテム',limited:'期間限定',hideLimited:'期間限定を除外',titleOnly:'称号報酬のみ',
+      gAll:'すべて',subAll:'全カテゴリ',updated:'最終更新',charFb:'キャラクター',
+      empty:'条件に合う項目がありません。フィルターを変更してみてください。',
+      cShown:'表示 {n} 件',cOwned:'　所持 {o} / {t}',cPts:'　{p} pt',gc:'{o} / {t}（{p}%）',
+      foot:'データ提供：<a href="https://ffxivcollect.com/" target="_blank" rel="noopener">FFXIV Collect</a>（ロードストーン由来・非商用利用）<br><span class="sep">◇</span> 所持状況はロードストーンの公開情報に基づきます。ゲーム内で入手してから反映まで時間差が出る場合があります。 <span class="sep">◇</span><br>FINAL FANTASY XIV © SQUARE ENIX CO., LTD. 本ツールは非公式のファン制作物です。'},
+    en:{h1:'Mount / Minion / Achievement<br>Collection Checker',
+      lede:'Enter a Lodestone ID to list your owned and missing mounts and minions, plus achievement progress by category. Data is pulled live from the FFXIV Collect API, so it stays current with each patch.',
+      lbl:'Lodestone ID (or character page URL)',
+      ph:'e.g. 1143042 / https://na.finalfantasyxiv.com/lodestone/character/1143042/',
+      hint:'The ID is the number at the end of your Lodestone character page URL. Open "My Character" and check the URL, or <a href="https://na.finalfantasyxiv.com/lodestone/character/" target="_blank" rel="noopener">search by name on the Lodestone</a>.',
+      btn:'Check',btnL:'Loading…',
+      notFound:'This character is not registered on FFXIV Collect yet. Register once (a Lodestone import) and it will be available here afterward.',register:'Register on FFXIV Collect',
+      charPriv:'This character is set to private on the Lodestone, so it cannot be retrieved. Make it public and try again later.',
+      err:'Could not retrieve data ({e}). Check the ID and try again later. Lodestone maintenance can also block requests.',
+      idErr:'Could not read an ID. Enter the number at the end of the Lodestone page URL, or digits only.',
+      tMounts:'Mounts',tMinions:'Minions',tAch:'Achievements',
+      sAll:'All',sOwned:'Owned',sMiss:'Missing',
+      qCol:'Filter by name',qAch:'Filter by name or requirement',srcAll:'Source: All',
+      soPatch:'Newest patch',soPatchA:'Oldest patch',soName:'Name',soRar:'Rarest first',soPts:'Most points',
+      rMounts:'Mounts',rMinions:'Minions',rAch:'Achieve.',priv:'Private',privSub:'Make public',
+      achNotice:'This character has achievements set to <strong>private</strong> on the Lodestone, so ownership cannot be retrieved.<br>Enable public achievements in the in-game Character Configuration, wait for the Lodestone to update, then check again (everything is shown as not obtained).',
+      oCol:'Owned',mCol:'Missing',oAch:'Obtained',mAch:'Not obtained',
+      market:'Marketable',rar:'Owned ',title:'Title',item:'Item',limited:'Time-limited',hideLimited:'Hide time-limited',titleOnly:'Title rewards',
+      gAll:'All',subAll:'All categories',updated:'Updated',charFb:'Character',
+      empty:'Nothing matches these filters. Try changing them.',
+      cShown:'Showing {n}',cOwned:' · Owned {o} / {t}',cPts:' · {p} pts',gc:'{o} / {t} ({p}%)',
+      foot:'Data: <a href="https://ffxivcollect.com/" target="_blank" rel="noopener">FFXIV Collect</a> (from the Lodestone, non-commercial).<br><span class="sep">◇</span> Ownership reflects public Lodestone data; there can be a delay after obtaining items in-game. <span class="sep">◇</span><br>FINAL FANTASY XIV © SQUARE ENIX CO., LTD. Unofficial fan-made tool.'},
+    de:{h1:'Reittiere / Begleiter / Erfolge<br>Sammlungs-Checker',
+      lede:'Gib eine Lodestone-ID ein, um erhaltene und fehlende Reittiere und Begleiter sowie den Erfolgsfortschritt nach Kategorie aufzulisten. Die Daten stammen live aus der FFXIV-Collect-API und bleiben mit jedem Patch aktuell.',
+      lbl:'Lodestone-ID (oder Charakterseiten-URL)',
+      ph:'z. B. 1143042 / https://de.finalfantasyxiv.com/lodestone/character/1143042/',
+      hint:'Die ID ist die Zahl am Ende deiner Lodestone-Charakterseiten-URL. Öffne „Mein Charakter" und prüfe die URL, oder <a href="https://de.finalfantasyxiv.com/lodestone/character/" target="_blank" rel="noopener">suche im Lodestone nach dem Namen</a>.',
+      btn:'Prüfen',btnL:'Lädt…',
+      notFound:'Dieser Charakter ist noch nicht bei FFXIV Collect registriert. Registriere ihn einmalig (Lodestone-Import); danach ist er hier verfügbar.',register:'Bei FFXIV Collect registrieren',
+      charPriv:'Dieser Charakter ist im Lodestone auf privat gesetzt und kann nicht abgerufen werden. Auf öffentlich stellen und später erneut versuchen.',
+      err:'Daten konnten nicht abgerufen werden ({e}). Prüfe die ID und versuche es später erneut. Auch Lodestone-Wartungen können Anfragen blockieren.',
+      idErr:'Keine ID erkannt. Gib die Zahl am Ende der Lodestone-URL oder nur Ziffern ein.',
+      tMounts:'Reittiere',tMinions:'Begleiter',tAch:'Erfolge',
+      sAll:'Alle',sOwned:'Erhalten',sMiss:'Fehlend',
+      qCol:'Nach Name filtern',qAch:'Nach Name/Bedingung filtern',srcAll:'Quelle: Alle',
+      soPatch:'Neuester Patch',soPatchA:'Ältester Patch',soName:'Name',soRar:'Seltenste zuerst',soPts:'Meiste Punkte',
+      rMounts:'Reittiere',rMinions:'Begleiter',rAch:'Erfolge',priv:'Privat',privSub:'Öffentlich schalten',
+      achNotice:'Bei diesem Charakter sind die Erfolge im Lodestone auf <strong>privat</strong> gesetzt, daher kann der Besitz nicht abgerufen werden.<br>Aktiviere öffentliche Erfolge in der Charaktereinstellung im Spiel, warte auf die Lodestone-Aktualisierung und prüfe erneut (alles wird als nicht erhalten angezeigt).',
+      oCol:'Erhalten',mCol:'Fehlend',oAch:'Erhalten',mAch:'Nicht erhalten',
+      market:'Handelbar',rar:'Besitz ',title:'Titel',item:'Gegenstand',limited:'Begrenzt',hideLimited:'Begrenzte ausblenden',titleOnly:'Nur Titel',
+      gAll:'Alle',subAll:'Alle Kategorien',updated:'Aktualisiert',charFb:'Charakter',
+      empty:'Nichts entspricht diesen Filtern. Ändere sie.',
+      cShown:'Zeige {n}',cOwned:' · Erhalten {o} / {t}',cPts:' · {p} Pkt.',gc:'{o} / {t} ({p}%)',
+      foot:'Daten: <a href="https://ffxivcollect.com/" target="_blank" rel="noopener">FFXIV Collect</a> (aus dem Lodestone, nicht-kommerziell).<br><span class="sep">◇</span> Der Besitz spiegelt öffentliche Lodestone-Daten wider; nach dem Erhalt im Spiel kann es zu Verzögerungen kommen. <span class="sep">◇</span><br>FINAL FANTASY XIV © SQUARE ENIX CO., LTD. Inoffizielles Fan-Tool.'},
+    fr:{h1:'Montures / Mascottes / Hauts faits<br>Vérificateur de collection',
+      lede:'Saisissez un identifiant Lodestone pour lister vos montures et mascottes obtenues et manquantes, ainsi que la progression des hauts faits par catégorie. Les données proviennent en direct de l’API FFXIV Collect et restent à jour à chaque mise à jour.',
+      lbl:'Identifiant Lodestone (ou URL de la page du personnage)',
+      ph:'ex. 1143042 / https://fr.finalfantasyxiv.com/lodestone/character/1143042/',
+      hint:'L’identifiant est le nombre à la fin de l’URL de votre page Lodestone. Ouvrez « Mon personnage » et vérifiez l’URL, ou <a href="https://fr.finalfantasyxiv.com/lodestone/character/" target="_blank" rel="noopener">recherchez par nom sur le Lodestone</a>.',
+      btn:'Vérifier',btnL:'Chargement…',
+      notFound:'Ce personnage n’est pas encore enregistré sur FFXIV Collect. Enregistrez-le une fois (import Lodestone) ; il sera ensuite disponible ici.',register:'Enregistrer sur FFXIV Collect',
+      charPriv:'Ce personnage est en privé sur le Lodestone et ne peut pas être récupéré. Passez-le en public et réessayez plus tard.',
+      err:'Impossible de récupérer les données ({e}). Vérifiez l’identifiant et réessayez plus tard. Une maintenance du Lodestone peut aussi bloquer les requêtes.',
+      idErr:'Identifiant non reconnu. Saisissez le nombre à la fin de l’URL Lodestone, ou uniquement des chiffres.',
+      tMounts:'Montures',tMinions:'Mascottes',tAch:'Hauts faits',
+      sAll:'Tout',sOwned:'Obtenu',sMiss:'Manquant',
+      qCol:'Filtrer par nom',qAch:'Filtrer par nom/condition',srcAll:'Source : tout',
+      soPatch:'Patch récent',soPatchA:'Patch ancien',soName:'Nom',soRar:'Plus rares',soPts:'Plus de points',
+      rMounts:'Montures',rMinions:'Mascottes',rAch:'H. faits',priv:'Privé',privSub:'Passer en public',
+      achNotice:'Les hauts faits de ce personnage sont en <strong>privé</strong> sur le Lodestone ; la possession ne peut pas être récupérée.<br>Activez les hauts faits publics dans la configuration du personnage en jeu, attendez la mise à jour du Lodestone, puis réessayez (tout est affiché comme non obtenu).',
+      oCol:'Obtenu',mCol:'Manquant',oAch:'Obtenu',mAch:'Non obtenu',
+      market:'Vendable',rar:'Possédé ',title:'Titre',item:'Objet',limited:'Limité',hideLimited:'Masquer les limités',titleOnly:'Titres seul.',
+      gAll:'Tout',subAll:'Toutes catégories',updated:'Mis à jour',charFb:'Personnage',
+      empty:'Aucun résultat pour ces filtres. Modifiez-les.',
+      cShown:'Affichage {n}',cOwned:' · Obtenu {o} / {t}',cPts:' · {p} pts',gc:'{o} / {t} ({p}%)',
+      foot:'Données : <a href="https://ffxivcollect.com/" target="_blank" rel="noopener">FFXIV Collect</a> (depuis le Lodestone, non commercial).<br><span class="sep">◇</span> La possession reflète les données publiques du Lodestone ; un délai est possible après l’obtention en jeu. <span class="sep">◇</span><br>FINAL FANTASY XIV © SQUARE ENIX CO., LTD. Outil non officiel réalisé par un fan.'}
+  };
+
+  var state={
+    lang:"ja", tab:"mounts",
+    master:{mounts:null,minions:null,achievements:null},
+    owned:{mounts:new Set(),minions:new Set(),achievements:new Set()},
+    total:{mounts:0,minions:0,achievements:0},
+    genres:[], achPublic:null, achPoints:{have:0,total:0},
+    rewardMap:{}, rewardLoaded:false,
+    charId:null, achLoaded:false, achOwnedCount:0, achPartial:false,
+    char:null, loading:false,
+    filter:{state:"all",q:"",source:"all",genre:"all",category:"all",sort:"patch",hideLimited:false,titleOnly:false}
+  };
+  function t(){ return T[state.lang]; }
+  function fmt(s,o){ return String(s).replace(/\{(\w+)\}/g,function(_,k){return o[k]!=null?o[k]:"";}); }
+
+  function extractId(v){ var m=String(v||"").match(/(\d{4,})/); return m?m[1]:""; }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+  function patchNum(p){ var s=String(p||"0").split("."); return (parseInt(s[0],10)||0)*1000+(parseInt(s[1],10)||0); }
+  function rarityNum(o){ var n=parseFloat(String(o||"").replace("%","")); return isNaN(n)?101:n; }
+  function nf(n){ return (n||0).toLocaleString(); }
+  function showMsg(k,h){ var m=el("msg"); m.className="msg show "+k; m.innerHTML=h; }
+  function hideMsg(){ el("msg").className="msg"; }
+  function isLimited(a){ return TL_IDS.has(a.id)||TL_CATS.has(a.catId); }
+
+  function slimCol(x){ return {id:x.id,name:x.name,patch:x.patch,owned:x.owned,tradeable:x.tradeable,icon:x.icon,image:x.image,
+    sources:(x.sources||[]).map(function(s){return {type:s.type,text:s.text,related_type:s.related_type,related_id:s.related_id};})}; }
+  function slimAch(x){
+    var rw=x.reward||{}, reward=null;
+    if(rw.type==="Title") reward={type:"Title",name:(rw.title&&rw.title.name)||""};
+    else if(rw.type==="Item") reward={type:"Item",name:rw.name||""};
+    return {id:x.id,name:x.name,description:x.description,points:x.points,patch:x.patch,owned:x.owned,icon:x.icon,
+      genreId:(x.type&&x.type.id),genre:(x.type&&x.type.name)||"—",catId:(x.category&&x.category.id),category:(x.category&&x.category.name)||"",reward:reward}; }
+
+  function getMaster(kind){
+    var key="ffxivcol_"+CV+"_"+kind+"_"+state.lang;
+    try{ var c=JSON.parse(localStorage.getItem(key)||"null");
+      if(c && (Date.now()-c.t)<TTL && c.data) return Promise.resolve(c.data); }catch(e){}
+    return fetch(API+"/"+kind+"?language="+state.lang).then(function(r){ if(!r.ok) throw new Error(kind+" "+r.status); return r.json(); })
+      .then(function(j){ var raw=j.results||j, data=(kind==="achievements")?raw.map(slimAch):raw.map(slimCol);
+        try{ localStorage.setItem(key,JSON.stringify({t:Date.now(),data:data})); }catch(e){} return data; });
+  }
+  function ownedFallback(id,kind,masterIds){
+    return fetch(API+"/characters/"+id+"/"+kind+"/owned?language="+state.lang).then(function(r){
+      if(r.ok) return r.json().then(function(j){ return new Set((j.results||j).map(function(x){return x.id;})); });
+      if(r.status===403) return null;
+      return fetch(API+"/characters/"+id+"/"+kind+"/missing?language="+state.lang).then(function(r2){
+        if(!r2.ok) throw new Error(kind+" "+r.status);
+        return r2.json().then(function(j2){ var miss=new Set((j2.results||j2).map(function(x){return x.id;}));
+          return new Set(masterIds.filter(function(i){return !miss.has(i);})); });
+      });
+    });
+  }
+  // reward-item icons: reverse-map achievement_id -> {icon,name} from collections that link back via sources
+  function loadRewardIcons(){
+    if(state.rewardLoaded) return Promise.resolve();
+    var jobs=[];
+    ["mounts","minions"].forEach(function(k){ jobs.push(state.master[k]?Promise.resolve(state.master[k]):getMaster(k).catch(function(){return [];})); });
+    REWARD_COLLECTIONS.forEach(function(k){ jobs.push(getMaster(k).catch(function(){return [];})); });
+    return Promise.all(jobs).then(function(all){
+      var map={};
+      all.forEach(function(list){ (list||[]).forEach(function(it){ (it.sources||[]).forEach(function(s){
+        if(s.related_type==="Achievement" && s.related_id!=null && !map[s.related_id]) map[s.related_id]={icon:it.icon||it.image||"",name:it.name};
+      }); }); });
+      state.rewardMap=map; state.rewardLoaded=true;
+    });
+  }
+
+  /* ── ロードストーン直読み（所持状況）× FFXIV Collect カタログ突き合わせ ── */
+  function normName(s){ return String(s==null?"":s).normalize("NFKC").toLowerCase().replace(/\s+/g,"").replace(/[’'`\u02bb]/g,"'"); }
+  var _nameIdx={};
+  function nameIndex(kind){
+    var key=kind+"_"+state.lang; if(_nameIdx[key]) return _nameIdx[key];
+    var idx={}; (state.master[kind]||[]).forEach(function(x){ var n=normName(x.name); if(!(n in idx)) idx[n]=x.id; });
+    _nameIdx[key]=idx; return idx;
+  }
+  function matchNames(kind,names){ var idx=nameIndex(kind), set=new Set();
+    (names||[]).forEach(function(nm){ var id=idx[normName(nm)]; if(id!=null) set.add(id); }); return set; }
+
+  /* ── 入手先（source）の日本語化：1) 種別ラベル辞書 ＋ 定型文  2) related_idでカタログ名差し替え ── */
+  var SRC_TYPE_JA={
+    "Achievement":"アチーブメント","Quest":"クエスト","Event":"イベント","Seasonal Event":"シーズナルイベント","Seasonal":"シーズナル",
+    "Trial":"討伐・討滅戦","Raid":"レイド","Alliance Raid":"アライアンスレイド","Dungeon":"ダンジョン","Deep Dungeon":"ディープダンジョン","Instance":"インスタンス",
+    "PvP":"PvP","Frontline":"フロントライン","Crystalline Conflict":"クリスタルコンフリクト","Ranking":"ランキング",
+    "Gil":"ギル","MGP":"MGP","Gold Saucer":"ゴールドソーサー","Company Seals":"軍票","Seals":"軍票","Scrip":"スクリップ","Scrips":"スクリップ","Currency":"通貨",
+    "Shop":"ショップ","Store":"オンラインストア","Online Store":"オンラインストア","Premium":"オンラインストア",
+    "Crafting":"製作","Gathering":"採集","Fishing":"釣り","Treasure":"トレジャーハント","Voyage":"探索","Venture":"ベンチャー","Retainer":"リテイナー",
+    "FATE":"FATE","Fate":"FATE","Exploration":"探索","Eureka":"エウレカ","Bozja":"ボズヤ","Island Sanctuary":"島の生活","Custom Delivery":"個別配達",
+    "Feature":"ゲーム内機能","Item":"アイテム","NPC":"NPC","Triple Triad":"トリプルトライアド","Blue Magic":"青魔法","Relic":"リレイック",
+    "Promotion":"プロモーション","Subscription":"サブスクリプション","Collectable":"コレクタブル","Legacy":"レガシー","Yo-kai Watch":"妖怪ウォッチ"
+  };
+  function jaType(ty){ return (state.lang==="ja" && SRC_TYPE_JA[ty]) ? SRC_TYPE_JA[ty] : (ty||""); }
+  function jaPattern(t){
+    return String(t)
+      .replace(/^(\d[\d,]*)\s+Gil$/i,"$1 ギル")
+      .replace(/^(\d[\d,]*)\s+Company Seals$/i,"$1 軍票")
+      .replace(/^Online Store$/i,"オンラインストア")
+      .replace(/^Crystalline Conflict Season Reward$/i,"クリスタルコンフリクト シーズン報酬")
+      .replace(/^PvP Series (\d+)\s*-\s*Level (\d+)$/i,"PvPシリーズ$1 - レベル$2")
+      .replace(/^Unreported\s*\/\s*(.+)$/i,"未報告 / $1")
+      .replace(/^Crafted(?:\s+by\s+(.+))?$/i,function(_,j){return j?(j+" 製作"):"製作";});
+  }
+  var _idName={};
+  function idName(kind,id){
+    var key=kind+"_"+state.lang, m=_idName[key];
+    if(!m){ m={}; (state.master[kind]||[]).forEach(function(x){ m[x.id]=x.name; }); _idName[key]=m; }
+    return m[id];
+  }
+  function jaText(src){
+    var text=src.text; if(!text) return "";
+    if(src.related_id!=null){
+      var cat = src.related_type==="Achievement" ? "achievements"
+              : src.related_type==="Mount" ? "mounts"
+              : src.related_type==="Minion" ? "minions" : null;
+      if(cat){ var nm=idName(cat, src.related_id); if(nm) return nm; }
+    }
+    return state.lang==="ja" ? jaPattern(text) : text;
+  }
+  function srcLine(src){ if(!src) return ""; var ty=jaType(src.type), tx=jaText(src); return esc(ty)+(tx?"："+esc(tx):""); }
+
+  function lfetch(id,type){
+    return fetch(LFN+"?id="+id+"&type="+type+"&lang="+state.lang).then(function(r){
+      if(r.status===404){ var e=new Error("notfound"); e.code=404; throw e; }
+      if(!r.ok){ var e2=new Error("lodestone "+r.status); e2.code=r.status; throw e2; }
+      return r.json();
+    });
+  }
+  function loadOwnershipLodestone(id){
+    return Promise.all([lfetch(id,"character"),lfetch(id,"mounts"),lfetch(id,"minions")]).then(function(a){
+      var ch=a[0]; if(ch.error) throw new Error(ch.error);
+      state.char={name:ch.name,server:ch.server,data_center:ch.data_center,portrait:ch.portrait,last_parsed:null};
+      state.owned.mounts=matchNames("mounts",a[1].names);
+      state.owned.minions=matchNames("minions",a[2].names);
+      var ac=ch.achievements||{};
+      state.achPublic=(ac.public!==false); state.achPoints={have:ac.points||0,total:0};
+      state.achOwnedCount=ac.count||0; state.achLoaded=false; state.owned.achievements=new Set();
+    });
+  }
+  function loadAchievementsLodestone(id){
+    if(state.achLoaded) return Promise.resolve();
+    return lfetch(id,"achievements").then(function(a){
+      state.achPublic=(a.public!==false);
+      state.owned.achievements=new Set((a.ids||[]).map(Number));
+      state.achOwnedCount=state.owned.achievements.size; state.achLoaded=true; state.achPartial=!!a.partial;
+    });
+  }
+
+  function lookup(){
+    if(state.loading) return;
+    var id=extractId(el("cid").value);
+    if(!id){ showMsg("err",t().idErr); return; }
+    state.loading=true; hideMsg();
+    var go=el("go"); go.disabled=true; go.textContent=t().btnL; el("board").classList.remove("show");
+
+    state.charId=id; state.achLoaded=false; state.achOwnedCount=0; state.achPartial=false;
+    Promise.all([getMaster("mounts"),getMaster("minions"),getMaster("achievements")]).then(function(m){
+      state.master.mounts=m[0]; state.master.minions=m[1]; state.master.achievements=m[2];
+      state.total.mounts=m[0].length; state.total.minions=m[1].length; state.total.achievements=m[2].length;
+      buildGenres();
+      if(SRC==="lodestone") return loadOwnershipLodestone(id);
+      return fetch(API+"/characters/"+id+"?ids=true&language="+state.lang).then(function(r){
+        if(r.status===404){ var e=new Error("notfound"); e.code=404; throw e; }
+        if(r.status===403){ var e2=new Error("private"); e2.code=403; throw e2; }
+        if(!r.ok) throw new Error("character "+r.status);
+        return r.json();
+      }).then(function(char){
+        state.char=char;
+        var mm=char.mounts||{}, mi=char.minions||{}, ac=char.achievements||{}, pend=[];
+        if(Array.isArray(mm.ids)) state.owned.mounts=new Set(mm.ids);
+        else pend.push(ownedFallback(id,"mounts",m[0].map(function(x){return x.id;})).then(function(s){state.owned.mounts=s||new Set();}));
+        if(Array.isArray(mi.ids)) state.owned.minions=new Set(mi.ids);
+        else pend.push(ownedFallback(id,"minions",m[1].map(function(x){return x.id;})).then(function(s){state.owned.minions=s||new Set();}));
+        state.achPublic=(ac.public!==false); state.achPoints={have:ac.points||0,total:ac.points_total||0};
+        state.owned.achievements=Array.isArray(ac.ids)?new Set(ac.ids):new Set();
+        state.achLoaded=true; state.achOwnedCount=state.owned.achievements.size;
+        return Promise.all(pend);
+      });
+    }).then(function(){
+      buildSourceOptions(); renderChar(); applyTabUI(); render();
+      el("board").classList.add("show"); el("board").scrollIntoView({block:"start"});
+    }).catch(function(err){
+      if(err.code===404 && SRC==="lodestone"){ showMsg("err", fmt(t().err,{e:"Lodestone 404"})); }
+      else if(err.code===404){ showMsg("info", t().notFound+'<br><a class="btn" href="https://ffxivcollect.com/characters/'+esc(id)+'" target="_blank" rel="noopener">'+t().register+'</a>'); }
+      else if(err.code===403){ showMsg("err", t().charPriv); }
+      else { showMsg("err", fmt(t().err,{e:esc(err.message)})); }
+    }).then(function(){ state.loading=false; el("go").disabled=false; el("go").textContent=t().btn; });
+  }
+
+  function buildGenres(){
+    var seen={}, order=[];
+    (state.master.achievements||[]).forEach(function(a){ var k=String(a.genreId); if(!seen[k]){seen[k]=1; order.push({id:k,name:a.genre});} });
+    state.genres=order;
+  }
+  function passLimit(a){ return !(state.filter.hideLimited && isLimited(a)); }
+  function genreStats(gid){
+    var list=state.master.achievements||[], owned=state.owned.achievements, tt=0,oo=0;
+    for(var i=0;i<list.length;i++){ var a=list[i]; if(!passLimit(a)) continue;
+      if(gid==="all"||String(a.genreId)===gid){ tt++; if(owned.has(a.id)) oo++; } } return {o:oo,t:tt};
+  }
+  function subStats(gid,cid){
+    var list=state.master.achievements||[], owned=state.owned.achievements, tt=0,oo=0;
+    for(var i=0;i<list.length;i++){ var a=list[i]; if(!passLimit(a)) continue;
+      if(String(a.genreId)===gid && (cid==="all"||String(a.catId)===cid)){ tt++; if(owned.has(a.id)) oo++; } } return {o:oo,t:tt};
+  }
+  function subcatsOf(gid){
+    var seen={}, order=[];
+    (state.master.achievements||[]).forEach(function(a){ if(String(a.genreId)!==gid) return; var k=String(a.catId); if(!seen[k]){seen[k]=1; order.push({id:k,name:a.category});} });
+    return order;
+  }
+
+  function ring(pct,label,center,sub,grad,dim){
+    var R=42, C=2*Math.PI*R, off=C*(1-(pct||0)/100);
+    return '<div class="ring"><svg width="98" height="98" viewBox="0 0 98 98">'+
+      '<circle class="track" cx="49" cy="49" r="'+R+'"></circle>'+
+      '<circle class="fill" cx="49" cy="49" r="'+R+'" stroke="url(#'+grad+')" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+C.toFixed(1)+'" data-off="'+off.toFixed(1)+'"></circle>'+
+      '<text class="pct'+(dim?' small':'')+'" x="49" y="'+(dim?54:55)+'" text-anchor="middle" transform="rotate(90 49 49)">'+center+'</text>'+
+      '</svg><div class="lab">'+label+'</div><div class="cnt">'+sub+'</div></div>';
+  }
+  function renderChar(){
+    var c=state.char||{}, L=t();
+    var om=state.owned.mounts.size, tm=state.total.mounts, oi=state.owned.minions.size, ti=state.total.minions, ta=state.total.achievements;
+    var oa=state.achLoaded?state.owned.achievements.size:(state.achOwnedCount||0);
+    var pm=tm?om/tm*100:0, pi=ti?oi/ti*100:0, pa=ta?oa/ta*100:0;
+    var portrait=c.portrait?'<img class="portrait" src="'+esc(c.portrait)+'" alt="" onerror="this.style.display=\'none\'">':"";
+    var dc=c.data_center?"（"+esc(c.data_center)+"）":"";
+    var parsed=c.last_parsed?L.updated+"："+new Date(c.last_parsed).toLocaleString():"";
+    var achRing=state.achPublic?ring(pa,L.rAch,Math.round(pa)+"%",nf(oa)+" / "+nf(ta),"ga",false):ring(0,L.rAch,L.priv,L.privSub,"ga",true);
+    el("charcard").innerHTML=
+      '<svg width="0" height="0"><defs>'+
+        '<linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#e7b83f"/></linearGradient>'+
+        '<linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#948ae8"/><stop offset="1" stop-color="#e7b83f"/></linearGradient>'+
+        '<linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#948ae8"/></linearGradient>'+
+      '</defs></svg>'+portrait+
+      '<div class="who"><div class="name">'+esc(c.name||L.charFb)+'</div><div class="meta">'+esc(c.server||"")+' '+dc+'</div>'+(parsed?'<div class="parsed">'+esc(parsed)+'</div>':'')+'</div>'+
+      '<div class="rings">'+ring(pm,L.rMounts,Math.round(pm)+"%",om+" / "+tm,"gm",false)+ring(pi,L.rMinions,Math.round(pi)+"%",oi+" / "+ti,"gi",false)+achRing+'</div>';
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ var f=el("charcard").querySelectorAll(".fill"); for(var i=0;i<f.length;i++) f[i].style.strokeDashoffset=f[i].getAttribute("data-off"); });});
+  }
+
+  function buildSourceOptions(){
+    var sel=el("source"), cur=state.filter.source, set={};
+    ["mounts","minions"].forEach(function(k){ (state.master[k]||[]).forEach(function(it){ (it.sources||[]).forEach(function(s){ if(s.type) set[s.type]=1; }); }); });
+    var types=Object.keys(set).sort();
+    sel.innerHTML='<option value="all">'+esc(t().srcAll)+'</option>'+types.map(function(x){return '<option value="'+esc(x)+'">'+esc(jaType(x))+'</option>';}).join("");
+    sel.value=set[cur]?cur:"all"; state.filter.source=sel.value;
+  }
+  function populateSubcat(){
+    var sel=el("subcat"), gid=state.filter.genre, L=t();
+    if(gid==="all"||state.tab!=="achievements"){ sel.classList.add("hidden"); sel.innerHTML=""; return; }
+    var subs=subcatsOf(gid), cur=state.filter.category;
+    sel.innerHTML='<option value="all">'+esc(L.subAll)+'</option>'+subs.map(function(sc){ var s=subStats(gid,sc.id); return '<option value="'+esc(sc.id)+'">'+esc(sc.name)+' ('+s.o+'/'+s.t+')</option>'; }).join("");
+    var keep=(cur!=="all" && subs.some(function(x){return x.id===cur;}));
+    sel.value=keep?cur:"all"; state.filter.category=sel.value; sel.classList.remove("hidden");
+  }
+
+  function applyTabUI(){
+    var isAch=state.tab==="achievements", L=t();
+    el("source").classList.toggle("hidden",isAch);
+    el("achFilters").classList.toggle("hidden",!isAch);
+    el("genrebar").classList.toggle("hidden",!isAch);
+    el("q").placeholder=isAch?L.qAch:L.qCol;
+    el("grid").classList.toggle("wide",isAch);
+    var n=el("achNotice"); if(isAch && !state.achPublic){ n.classList.remove("hidden"); n.innerHTML=L.achNotice; } else n.classList.add("hidden");
+    if(isAch){ renderGenreBar(); populateSubcat(); renderSubMeter(); loadRewardIcons().then(function(){ if(state.tab==="achievements") render(); });
+      if(SRC==="lodestone" && state.achPublic && !state.achLoaded && state.charId){
+        loadAchievementsLodestone(state.charId).then(function(){ renderChar(); if(state.tab==="achievements"){ renderGenreBar(); populateSubcat(); renderSubMeter(); render(); } }).catch(function(){ state.achLoaded=true; });
+      }
+    }
+    else { el("subcat").classList.add("hidden"); renderSubMeter(); }
+  }
+  function renderGenreBar(){
+    var bar=el("genrebar"), cur=state.filter.genre, L=t();
+    var chips=[{id:"all",name:L.gAll}].concat(state.genres);
+    bar.innerHTML=chips.map(function(g){ var s=genreStats(g.id), pct=s.t?Math.round(s.o/s.t*100):0;
+      return '<button class="gchip'+(cur===g.id?" on":"")+'" data-genre="'+esc(g.id)+'"><div class="gn">'+esc(g.name)+'</div><div class="gc">'+fmt(L.gc,{o:s.o,t:s.t,p:pct})+'</div><div class="bar"><span style="width:'+pct+'%"></span></div></button>';
+    }).join("");
+  }
+
+  function renderSubMeter(){
+    var box=el("subbar"), L=t();
+    if(state.tab!=="achievements" || state.filter.genre==="all"){ box.classList.add("hidden"); box.innerHTML=""; return; }
+    var gid=state.filter.genre, cid=state.filter.category, name;
+    var s=(cid==="all")?genreStats(gid):subStats(gid,cid);
+    var pct=s.t?Math.round(s.o/s.t*100):0;
+    var g=state.genres.filter(function(x){return x.id===gid;})[0];
+    if(cid==="all"){ name=(g?g.name:"")+" — "+L.subAll; }
+    else { var sc=subcatsOf(gid).filter(function(x){return x.id===cid;})[0]; name=(g?g.name+" / ":"")+(sc?sc.name:""); }
+    box.innerHTML='<div class="smeter"><div class="smhead"><span class="smname">'+esc(name)+'</span><span class="smval">'+fmt(L.gc,{o:s.o,t:s.t,p:pct})+'</span></div>'+
+      '<div class="smbar"><span data-w="'+pct+'"></span></div></div>';
+    box.classList.remove("hidden");
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ var b=box.querySelector(".smbar span"); if(b) b.style.width=b.getAttribute("data-w")+"%"; }); });
+  }
+
+  function render(){
+    var kind=state.tab, isAch=kind==="achievements", L=t();
+    var list=(state.master[kind]||[]).slice(), owned=state.owned[kind], f=state.filter, q=f.q.trim().toLowerCase();
+    var out=list.filter(function(it){
+      var o=owned.has(it.id);
+      if(f.state==="owned"&&!o) return false;
+      if(f.state==="missing"&&o) return false;
+      if(isAch){
+        if(f.hideLimited && isLimited(it)) return false;
+        if(f.titleOnly && !(it.reward&&it.reward.type==="Title")) return false;
+        if(f.genre!=="all" && String(it.genreId)!==f.genre) return false;
+        if(f.category!=="all" && String(it.catId)!==f.category) return false;
+        if(q){ var hay=(String(it.name||"")+" "+String(it.description||"")+" "+(it.reward?String(it.reward.name||""):"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+      } else {
+        if(f.source!=="all" && !(it.sources||[]).some(function(s){return s.type===f.source;})) return false;
+        if(q && String(it.name||"").toLowerCase().indexOf(q)<0) return false;
+      }
+      return true;
+    });
+    out.sort(function(a,b){ switch(f.sort){
+      case "name": return String(a.name).localeCompare(String(b.name),state.lang);
+      case "patch_asc": return patchNum(a.patch)-patchNum(b.patch)||String(a.name).localeCompare(String(b.name),state.lang);
+      case "rarity": return rarityNum(a.owned)-rarityNum(b.owned);
+      case "points": return (b.points||0)-(a.points||0)||patchNum(b.patch)-patchNum(a.patch);
+      default: return patchNum(b.patch)-patchNum(a.patch)||String(a.name).localeCompare(String(b.name),state.lang);
+    }});
+    var scope=list;
+    if(isAch && (f.hideLimited||f.titleOnly)) scope=list.filter(function(a){ if(f.hideLimited&&isLimited(a)) return false; if(f.titleOnly&&!(a.reward&&a.reward.type==="Title")) return false; return true; });
+    var tot=0,ow=0; for(var i=0;i<scope.length;i++){ tot++; if(owned.has(scope[i].id)) ow++; }
+    var txt=fmt(L.cShown,{n:nf(out.length)})+fmt(L.cOwned,{o:nf(ow),t:nf(tot)});
+    if(isAch && state.achPublic) txt+=fmt(L.cPts,{p:nf(state.achPoints.have)});
+    el("count").textContent=txt;
+    if(!out.length){ el("grid").innerHTML='<div class="empty">'+esc(L.empty)+'</div>'; return; }
+    el("grid").innerHTML=out.map(isAch?achCard:colCard).join("");
+  }
+
+  function colCard(it){
+    var L=t(), owned=state.owned[state.tab].has(it.id);
+    var src=(it.sources&&it.sources[0])?it.sources[0]:null, icon=it.icon||it.image||"";
+    var tags='<span class="tag '+(owned?"state":"miss")+'">'+(owned?L.oCol:L.mCol)+'</span>';
+    if(it.patch) tags+='<span class="tag pt">Patch '+esc(it.patch)+'</span>';
+    if(it.tradeable) tags+='<span class="tag mb">'+L.market+'</span>';
+    if(it.owned) tags+='<span class="tag">'+L.rar+esc(it.owned)+'</span>';
+    return '<div class="item'+(owned?" owned":"")+'"><img class="ic" loading="lazy" src="'+esc(icon)+'" alt="" onerror="this.style.visibility=\'hidden\'">'+
+      '<div class="body"><div class="nm">'+esc(it.name)+'</div>'+(src?'<div class="src">'+srcLine(src)+'</div>':'')+'<div class="tags">'+tags+'</div></div></div>';
+  }
+  function achCard(it){
+    var L=t(), owned=state.owned.achievements.has(it.id);
+    var rw=(it.reward&&it.reward.type==="Item")?state.rewardMap[it.id]:null;
+    var mainIcon=(rw&&rw.icon)?rw.icon:(it.icon||"");
+    var tags='<span class="tag '+(owned?"state":"miss")+'">'+(owned?L.oAch:L.mAch)+'</span>';
+    tags+='<span class="tag pt">'+esc(it.genre)+(it.category?" / "+esc(it.category):"")+'</span>';
+    if(it.points) tags+='<span class="tag pts">'+it.points+' pt</span>';
+    if(it.reward){
+      if(it.reward.type==="Title") tags+='<span class="tag ttl">'+L.title+'：'+esc(it.reward.name)+'</span>';
+      else tags+='<span class="tag itm">'+L.item+'：'+esc(it.reward.name)+'</span>';
+    }
+    if(isLimited(it)) tags+='<span class="tag lim">'+L.limited+'</span>';
+    if(it.patch) tags+='<span class="tag">Patch '+esc(it.patch)+'</span>';
+    if(it.owned) tags+='<span class="tag">'+L.rar+esc(it.owned)+'</span>';
+    return '<div class="item'+(owned?" owned":"")+'"><img class="ic" loading="lazy" src="'+esc(mainIcon)+'" alt="" onerror="this.style.visibility=\'hidden\'">'+
+      '<div class="body"><div class="nm">'+esc(it.name)+'</div>'+(it.description?'<div class="desc">'+esc(it.description)+'</div>':'')+'<div class="tags">'+tags+'</div></div></div>';
+  }
+
+  function applyI18n(){
+    var L=t(); document.documentElement.lang=state.lang;
+    el("h1").innerHTML=L.h1; el("lede").textContent=L.lede; el("lbl").textContent=L.lbl;
+    el("cid").placeholder=L.ph; el("hint").innerHTML=L.hint;
+    el("go").textContent=state.loading?L.btnL:L.btn; el("foot").innerHTML=L.foot;
+    var tb=el("tabs").children; tb[0].textContent=L.tMounts; tb[1].textContent=L.tMinions; tb[2].textContent=L.tAch;
+    var ss=el("stateSeg").children; ss[0].textContent=L.sAll; ss[1].querySelector(".t").textContent=L.sOwned; ss[2].querySelector(".t").textContent=L.sMiss;
+    el("limitBtn").textContent=L.hideLimited; el("titleBtn").textContent=L.titleOnly;
+    el("q").placeholder=(state.tab==="achievements")?L.qAch:L.qCol;
+    el("sort").innerHTML='<option value="patch">'+esc(L.soPatch)+'</option><option value="patch_asc">'+esc(L.soPatchA)+'</option><option value="name">'+esc(L.soName)+'</option><option value="rarity">'+esc(L.soRar)+'</option><option value="points">'+esc(L.soPts)+'</option>';
+    el("sort").value=state.filter.sort;
+  }
+
+  function setLang(l){
+    if(!T[l]) return; state.lang=l; try{ localStorage.setItem("ffxivcol_lang",l); }catch(e){} applyI18n();
+    if(state.char){
+      Promise.all([getMaster("mounts"),getMaster("minions"),getMaster("achievements")]).then(function(m){
+        state.master.mounts=m[0]; state.master.minions=m[1]; state.master.achievements=m[2];
+        buildGenres(); buildSourceOptions(); renderChar(); applyTabUI(); render();
+      }).catch(function(){});
+    } else { getMaster("mounts").catch(function(){}); getMaster("minions").catch(function(){}); getMaster("achievements").catch(function(){}); }
+  }
+
+  el("go").addEventListener("click",function(){ try{ localStorage.setItem("ffxivcol_lastid",extractId(el("cid").value)); }catch(e){} lookup(); });
+  el("cid").addEventListener("keydown",function(e){ if(e.key==="Enter"){ try{ localStorage.setItem("ffxivcol_lastid",extractId(el("cid").value)); }catch(e2){} lookup(); } });
+  el("lang").addEventListener("change",function(){ setLang(this.value); });
+
+  el("tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return;
+    state.tab=b.getAttribute("data-tab"); Array.prototype.forEach.call(this.children,function(c){c.classList.toggle("on",c===b);}); applyTabUI(); render(); });
+  el("stateSeg").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return;
+    state.filter.state=b.getAttribute("data-state"); Array.prototype.forEach.call(this.children,function(c){c.classList.toggle("on",c===b);}); render(); });
+  el("achFilters").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return;
+    if(b.id==="limitBtn"){ state.filter.hideLimited=!state.filter.hideLimited; b.classList.toggle("on",state.filter.hideLimited); renderGenreBar(); populateSubcat(); renderSubMeter(); render(); }
+    else if(b.id==="titleBtn"){ state.filter.titleOnly=!state.filter.titleOnly; b.classList.toggle("on",state.filter.titleOnly); render(); } });
+  el("genrebar").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return;
+    state.filter.genre=b.getAttribute("data-genre"); state.filter.category="all";
+    Array.prototype.forEach.call(this.children,function(c){c.classList.toggle("on",c===b);}); populateSubcat(); renderSubMeter(); render(); });
+  el("subcat").addEventListener("change",function(){ state.filter.category=this.value; renderSubMeter(); render(); });
+  var qT; el("q").addEventListener("input",function(){ state.filter.q=this.value; clearTimeout(qT); qT=setTimeout(render,120); });
+  el("source").addEventListener("change",function(){ state.filter.source=this.value; render(); });
+  el("sort").addEventListener("change",function(){ state.filter.sort=this.value; render(); });
+
+  try{ var sl=localStorage.getItem("ffxivcol_lang"); if(sl&&T[sl]) state.lang=sl; }catch(e){}
+  el("lang").value=state.lang; applyI18n();
+  try{ var last=localStorage.getItem("ffxivcol_lastid"); if(last) el("cid").value=last; }catch(e){}
+  getMaster("mounts").catch(function(){}); getMaster("minions").catch(function(){}); getMaster("achievements").catch(function(){});
+})();
+</script>
+</body>
+</html>

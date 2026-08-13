@@ -384,6 +384,93 @@
         font: 11px var(--mono);
         color: var(--dim);
       }
+      .achievement-points {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 154px;
+        padding: 9px 12px;
+        border: 1px solid rgba(131, 182, 255, 0.32);
+        border-radius: 7px;
+        background: rgba(131, 182, 255, 0.08);
+      }
+      .achievement-points span,
+      .achievement-points small {
+        color: var(--mist);
+        font: 9px var(--mono);
+        letter-spacing: 0.07em;
+      }
+      .achievement-points strong {
+        color: var(--ice);
+        font: 700 14px var(--mono);
+      }
+      .grid.compact {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 7px;
+      }
+      .compact-item {
+        display: grid;
+        grid-template-columns: auto 34px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 7px 9px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: rgba(27, 20, 64, 0.5);
+      }
+      .compact-item.owned {
+        border-color: rgba(242, 193, 94, 0.42);
+        background: linear-gradient(
+          135deg,
+          rgba(242, 193, 94, 0.08),
+          rgba(27, 20, 64, 0.5)
+        );
+      }
+      .compact-state {
+        width: 16px;
+        color: var(--dim);
+        font: 700 14px var(--mono);
+        text-align: center;
+      }
+      .compact-item.owned .compact-state {
+        color: var(--amber);
+      }
+      .compact-icon {
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 4px;
+        object-fit: cover;
+        opacity: 0.42;
+        filter: grayscale(0.8);
+      }
+      .compact-item.owned .compact-icon {
+        opacity: 1;
+        filter: none;
+      }
+      .compact-main {
+        min-width: 0;
+      }
+      .compact-name {
+        overflow: hidden;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .compact-meta {
+        overflow: hidden;
+        color: var(--mist);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .compact-aside {
+        color: var(--dim);
+        font: 10px var(--mono);
+        text-align: right;
+        white-space: nowrap;
+      }
       .achievement-summary {
         display: none;
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -605,11 +692,14 @@
         .tabs {
           grid-column: 1/4;
         }
-        .seg {
+        #stateSeg {
           grid-column: 4/7;
         }
-        .searchbox {
+        #viewSeg {
           grid-column: 7/10;
+        }
+        .searchbox {
+          grid-column: 10/13;
           width: 100%;
         }
         .controls select:nth-of-type(1) {
@@ -696,6 +786,9 @@
         .grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 9px;
+        }
+        .grid.compact {
+          grid-template-columns: 1fr;
         }
         .item {
           min-width: 0;
@@ -954,6 +1047,10 @@
             ><button data-state="owned">所持済み</button
             ><button data-state="missing">未所持</button>
           </div>
+          <div class="seg" id="viewSeg" aria-label="表示形式">
+            <button data-view="compact">簡易表示</button
+            ><button class="on" data-view="detail">詳細表示</button>
+          </div>
           <input
             class="searchbox"
             id="q"
@@ -1020,6 +1117,7 @@
             achievements: "idle",
             achievementError: "",
           },
+          view: "detail",
           filter: {
             state: "all",
             q: "",
@@ -1312,6 +1410,24 @@
               .join("");
           el("source").value = state.filter.source;
         }
+        function isLegacyAchievement(record) {
+          const genre = (record.type || {}).name || "";
+          return genre === "レガシー" || genre === "Legacy";
+        }
+        function achievementRecords(records) {
+          return records.filter((record) => !isLegacyAchievement(record));
+        }
+        function achievementPoints(records, owned) {
+          return records.reduce(
+            (totals, record) => {
+              const points = Number(record.points || 0);
+              totals.total += points;
+              if (owned.has(record.id)) totals.earned += points;
+              return totals;
+            },
+            { earned: 0, total: 0 },
+          );
+        }
         function achievementGenreOptions(records) {
           const values = [
             ...new Set(records.map((x) => (x.type || {}).name).filter(Boolean)),
@@ -1348,6 +1464,7 @@
             (count, x) => count + (owned.has(x.id) ? 1 : 0),
             0,
           );
+          const points = achievementPoints(records, owned);
           const rows = [
             { genre: "all", label: "すべて", total, earned },
             ...[...groups.values()]
@@ -1356,7 +1473,7 @@
           ];
 
           summary.innerHTML =
-            `<div class="achievement-summary-head"><b>ジャンル別の取得状況</b><span>合計 ${n(earned)} / ${n(total)}</span></div>` +
+            `<div class="achievement-summary-head"><b>ジャンル別の取得状況</b><span>合計 ${n(earned)} / ${n(total)}（レガシー除外）</span></div><div class="achievement-points"><span>アチーブメントポイント</span><strong>${n(points.earned)} / ${n(points.total)} pt</strong><small>取得ポイント / 全ポイント（レガシー除外）</small></div>` +
             rows
               .map((row) => {
                 const rate = row.total ? (row.earned / row.total) * 100 : 0;
@@ -1420,8 +1537,11 @@
             tm = (state.masters.mounts || []).length,
             oi = state.owned.minions.size,
             ti = (state.masters.minions || []).length,
-            oa = state.owned.achievements.size,
-            ta = (state.masters.achievements || []).length,
+            achievements = achievementRecords(state.masters.achievements || []),
+            oa = achievements.filter((record) =>
+              state.owned.achievements.has(record.id),
+            ).length,
+            ta = achievements.length,
             pm = tm ? (om / tm) * 100 : 0,
             pi = ti ? (oi / ti) * 100 : 0,
             pa = ta ? (oa / ta) * 100 : 0;
@@ -1457,6 +1577,21 @@
           const s = x.sources[0],
             p = profile(x);
           return `<article class="item ${owned ? "owned" : ""}"><img class="ic" loading="lazy" src="${esc(x.icon || x.image)}" alt=""><div class="body"><div class="nm">${esc(x.name)}</div>${s ? `<div class="src">${esc(s.type || "")}${s.text ? "：" + esc(s.text) : ""}</div>` : ""}<div class="tags"><span class="tag ${owned ? "ok" : "no"}">${owned ? "所持済み" : "未所持"}</span><span class="tag mb">${p.market ? "MB購入可" : "MB購入不可"}</span><span class="tag ${p.availability === "available" ? "ok" : "warn"}">${p.availability === "available" ? "通常入手可" : "期間限定・要確認"}</span><span class="tag ${p.paid ? "warn" : ""}">${p.paid ? "課金要素あり" : p.campaign ? "キャンペーン系" : "課金要素なし"}</span>${ownershipRateTag(x)}${x.patch ? `<span class="tag pt">Patch ${esc(x.patch)}</span>` : ""}</div></div></article>`;
+        }
+        function achievementCard(x, owned) {
+          return `<article class="item ${owned ? "owned" : ""}"><img class="ic" loading="lazy" src="${esc(x.icon)}" alt=""><div class="body"><div class="nm">${esc(x.name)}</div><div class="desc">${esc(x.description)}</div><div class="tags"><span class="tag ${owned ? "ok" : "no"}">${owned ? "取得済み" : "未取得"}</span><span class="tag pt">${esc((x.type || {}).name || "—")}</span>${x.points ? `<span class="tag">${x.points} pt</span>` : ""}${ownershipRateTag(x)}</div></div></article>`;
+        }
+        function compactCard(kind, x, owned) {
+          const source = (x.sources || [])[0] || {};
+          const meta =
+            kind === "achievements"
+              ? `${(x.type || {}).name || "—"}${x.points ? ` · ${x.points} pt` : ""}`
+              : `${source.type || "—"}${source.text ? `：${source.text}` : ""}`;
+          const aside =
+            kind === "achievements"
+              ? String(x.owned || "—")
+              : String(x.owned || "—");
+          return `<article class="compact-item ${owned ? "owned" : ""}" title="${esc(x.description || x.name)}"><span class="compact-state" aria-label="${owned ? "所持済み" : "未所持"}">${owned ? "●" : "○"}</span><img class="compact-icon" loading="lazy" src="${esc(x.icon || x.image)}" alt=""><div class="compact-main"><div class="compact-name">${esc(x.name)}</div><div class="compact-meta">${esc(meta)}</div></div><span class="compact-aside">所持率 ${esc(aside)}</span></article>`;
         }
         function render() {
           const kind = state.kind,
@@ -1501,7 +1636,8 @@
               `<div class="empty">${esc(status.achievementError || "アチーブメントを取得できませんでした。")}</div>`;
             return;
           }
-          const records = state.masters[kind] || [],
+          const masterRecords = state.masters[kind] || [],
+            records = isAch ? achievementRecords(masterRecords) : masterRecords,
             owned = state.owned[kind] || new Set(),
             f = state.filter;
           if (isAch) achievementGenreOptions(records);
@@ -1557,15 +1693,21 @@
                 ? (parseFloat(a.owned) || 101) - (parseFloat(b.owned) || 101)
                 : patch(b.patch) - patch(a.patch);
           });
+          const ownedCount = records.filter((record) =>
+            owned.has(record.id),
+          ).length;
           el("count").textContent =
-            `表示 ${n(list.length)} 件　${isAch ? "取得" : "所持"} ${n(owned.size)} / ${n(records.length)}`;
+            `表示 ${n(list.length)} 件　${isAch ? "取得" : "所持"} ${n(ownedCount)} / ${n(records.length)}${isAch ? "（レガシー除外）" : ""}`;
+          el("grid").classList.toggle("compact", state.view === "compact");
           el("grid").innerHTML = list.length
             ? list
                 .map((x) => {
                   const have = owned.has(x.id);
-                  if (isAch)
-                    return `<article class="item ${have ? "owned" : ""}"><img class="ic" loading="lazy" src="${esc(x.icon)}" alt=""><div class="body"><div class="nm">${esc(x.name)}</div><div class="desc">${esc(x.description)}</div><div class="tags"><span class="tag ${have ? "ok" : "no"}">${have ? "取得済み" : "未取得"}</span><span class="tag pt">${esc((x.type || {}).name || "—")}</span>${x.points ? `<span class="tag">${x.points} pt</span>` : ""}${ownershipRateTag(x)}</div></div></article>`;
-                  return collectionCard(x, have);
+                  if (state.view === "compact")
+                    return compactCard(kind, x, have);
+                  return isAch
+                    ? achievementCard(x, have)
+                    : collectionCard(x, have);
                 })
                 .join("")
             : '<div class="empty">条件に合う項目がありません。</div>';
@@ -1652,6 +1794,15 @@
             state.filter.state = b.dataset.state;
             document
               .querySelectorAll("#stateSeg button")
+              .forEach((x) => x.classList.toggle("on", x === b));
+            rerender();
+          }),
+        );
+        document.querySelectorAll("#viewSeg button").forEach((b) =>
+          b.addEventListener("click", () => {
+            state.view = b.dataset.view;
+            document
+              .querySelectorAll("#viewSeg button")
               .forEach((x) => x.classList.toggle("on", x === b));
             rerender();
           }),

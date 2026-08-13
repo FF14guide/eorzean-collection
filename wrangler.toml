@@ -1,0 +1,9 @@
+name = "eorzean-collection"
+main = "worker.js"
+compatibility_date = "2025-05-01"
+
+# 静的サイト（index.html など）を配信。リクエストはまずアセットに一致すればそれを返し、
+# 一致しないパス（/api/lodestone など）だけ worker.js が処理する。
+[assets]
+directory = "."
+binding = "ASSETS"

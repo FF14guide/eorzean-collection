@@ -1,28 +1,23 @@
-エオルゼア蒐集録 — デプロイ用スナップショット（ロードストーン直読みハイブリッド版）
+エオルゼア蒐集録 — デプロイ用スナップショット（Worker + Static Assets 構成）
 =====================================================================
-このフォルダの中身を、GitHubクローン（例 eorzean-collection/）へそのままコピーして
-push すると、Cloudflare Pages が自動デプロイします。
+このプロジェクトは Cloudflare 上で「静的アセット付き Worker」として動いています
+（Pages ではありません）。そのため所持データ取得は functions/ ではなく worker.js が担当します。
 
-  index.html                     … サイト本体（リポジトリ直下＝トップページ）
-  functions/api/lodestone.js     … 所持状況をロードストーンから取得するサーバー側の口
-                                    （Cloudflare Pages Functions。デプロイで自動的に
-                                     /api/lodestone として有効になります）
-  ogp.png                        … OGP画像（任意）
+  index.html      … サイト本体（トップページ）
+  worker.js       … /api/lodestone を処理（ロードストーン直読み）＋ それ以外は静的配信
+  wrangler.toml   … Worker 設定（name / main / assets）
+  ogp.png         … OGP画像（任意）
 
-■ 役割分担（ハイブリッド）
-  ・全体カタログ（全マウント/ミニオン/アチーブメント・ジャンル・報酬）→ FFXIV Collect
-  ・キャラの所持状況 → functions/api/lodestone.js がロードストーンを直読み
-    → FFXIV Collect への事前登録は不要になります。
+■ 反映（Windows / Git Bash）
+  クローン先で以下を実行（初回のみ、旧 functions フォルダがあれば削除）:
+    git rm -r --ignore-unmatch functions
+  そのうえで通常どおり:
+    cp -r collection-proj/. eorzean-collection/ && cd eorzean-collection && git add -A && git commit -m "fix: Worker形式に対応（worker.js/wrangler.toml）" && git push
 
-■ 公開前の編集
-  ・index.html の <head> の canonical と og:url を実サブドメインに。
-  ・所持元を元の FFXIV Collect に戻したい場合は index.html 内の
-      var SRC="lodestone"  →  var SRC="ffxivcollect"
+■ デプロイ後の確認
+  https://collection.eorzeanfishing.com/api/lodestone?id=＜LodestoneID＞&type=character&lang=ja
+  → JSON が返れば成功。次に type=mounts / minions / achievements も確認。
 
-■ Cloudflare Pages のビルド設定
-  Framework preset = None / Build command = 空 / Build output directory = /（ルート）
-  functions/ フォルダは Pages が自動認識します（追加設定不要）。
-
-■ 動作テスト（デプロイ後、ブラウザで直接叩けます）
-  https://＜あなたのサブドメイン＞/api/lodestone?id=＜LodestoneID＞&type=mounts&lang=ja
-  → 所持マウント名の JSON が返れば成功。type は mounts / minions / achievements / character。
+■ 補足
+  wrangler.toml の name は Cloudflare 上の Worker 名「eorzean-collection」に一致させています。
+  所持元を旧FFXIV Collect方式に戻す場合は index.html 内の var SRC="lodestone" を "ffxivcollect" に。

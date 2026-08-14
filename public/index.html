@@ -404,6 +404,159 @@
         color: var(--ice);
         font: 700 14px var(--mono);
       }
+      .combat-profile {
+        display: none;
+        margin-top: 16px;
+        padding: 14px;
+        border: 1px solid var(--edge-soft);
+        border-radius: var(--r);
+        background:
+          linear-gradient(135deg, rgba(131, 182, 255, 0.08), transparent 45%),
+          rgba(27, 20, 64, 0.5);
+      }
+      .combat-profile.show {
+        display: block;
+      }
+      .combat-profile-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        color: var(--mist);
+        font: 11px var(--mono);
+      }
+      .combat-profile-head b {
+        color: var(--foam);
+        font-size: 13px;
+      }
+      .combat-profile-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(230px, 0.85fr);
+        gap: 12px;
+      }
+      .high-end-groups {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+      .high-end-group,
+      .fflogs-card {
+        min-width: 0;
+        padding: 10px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: rgba(8, 6, 20, 0.34);
+      }
+      .high-end-group h3,
+      .fflogs-card h3 {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0 0 7px;
+        color: var(--foam);
+        font-size: 11px;
+      }
+      .high-end-group h3 small,
+      .fflogs-card h3 small {
+        color: var(--dim);
+        font: 10px var(--mono);
+      }
+      .high-end-list {
+        display: grid;
+        gap: 4px;
+      }
+      .high-end-entry {
+        display: grid;
+        grid-template-columns: 8px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 6px;
+        border-radius: 5px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .high-end-entry i {
+        width: 7px;
+        height: 7px;
+        border: 1px solid var(--dim);
+        border-radius: 50%;
+      }
+      .high-end-entry.complete {
+        background: rgba(242, 193, 94, 0.09);
+      }
+      .high-end-entry.complete i {
+        border-color: var(--amber);
+        background: var(--amber);
+        box-shadow: 0 0 10px rgba(242, 193, 94, 0.48);
+      }
+      .high-end-name {
+        overflow: hidden;
+        color: var(--mist);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .high-end-entry.complete .high-end-name {
+        color: var(--foam);
+        font-weight: 750;
+      }
+      .high-end-date {
+        color: var(--dim);
+        font: 10px var(--mono);
+        white-space: nowrap;
+      }
+      .high-end-entry.complete .high-end-date {
+        color: var(--amber);
+      }
+      .fflogs-card {
+        display: flex;
+        flex-direction: column;
+      }
+      .fflogs-link {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        margin-bottom: 10px;
+        color: var(--ice);
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .fflogs-link:hover,
+      .fflogs-link:focus-visible {
+        color: var(--foam);
+        text-decoration: underline;
+      }
+      .fflogs-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+      }
+      .fflogs-metric {
+        padding: 9px;
+        border: 1px solid rgba(131, 182, 255, 0.25);
+        border-radius: 6px;
+        background: rgba(131, 182, 255, 0.07);
+      }
+      .fflogs-metric span,
+      .fflogs-metric small {
+        display: block;
+        color: var(--mist);
+        font: 9px var(--mono);
+      }
+      .fflogs-metric strong {
+        display: block;
+        margin: 2px 0;
+        color: var(--ice);
+        font: 800 20px var(--mono);
+      }
+      .fflogs-status {
+        margin: auto 0 0;
+        color: var(--dim);
+        font-size: 10px;
+        line-height: 1.45;
+      }
       .collection-summary {
         display: none;
         margin-top: 16px;
@@ -843,7 +996,8 @@
         }
       }
       @media (max-width: 1059px) {
-        .collection-summary .summary-groups {
+        .collection-summary .summary-groups,
+        .combat-profile-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -884,7 +1038,8 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 9px;
         }
-        .grid.compact {
+        .grid.compact,
+        .high-end-groups {
           grid-template-columns: 1fr;
         }
         .item {
@@ -1129,6 +1284,11 @@
           Collectに登録された公開キャラクターのサンプルに基づく値です。全プレイヤーの公式統計ではありません。アチーブメントは公開設定の影響で、特にサンプルが小さくなります。
         </div>
         <section
+          class="combat-profile"
+          id="combatProfile"
+          aria-label="高難易度の踏破履歴とFF Logsパフォーマンス"
+        ></section>
+        <section
           class="collection-summary"
           id="collectionSummary"
           aria-label="マウント・ミニオンの条件別取得状況"
@@ -1208,6 +1368,106 @@
           RELAXED_MATCH_MIN_GAP = 2,
           MASTER_TTL = 864e5,
           el = (id) => document.getElementById(id);
+        const HIGH_END_CATALOG = [
+          {
+            category: "絶シリーズ",
+            items: [
+              {
+                id: 1993,
+                name: "絶バハムート",
+                patch: "4.11",
+                title: "the Legend",
+              },
+              {
+                id: 2107,
+                name: "絶アルテマ",
+                patch: "4.31",
+                title: "the Ultimate Legend",
+              },
+              {
+                id: 2444,
+                name: "絶アレキ",
+                patch: "5.11",
+                title: "the Perfect Legend",
+              },
+              {
+                id: 3074,
+                name: "絶竜詩",
+                patch: "6.11",
+                title: "the Heavens' Legend",
+              },
+              {
+                id: 3162,
+                name: "絶オメガ",
+                patch: "6.31",
+                title: "the Alpha Legend",
+              },
+              {
+                id: 3617,
+                name: "絶エデン",
+                patch: "7.11",
+                title: "Genesis of Legend",
+              },
+              {
+                id: 4069,
+                name: "絶ケフカ",
+                patch: "7.51",
+                title: "Cruel Legend",
+              },
+            ],
+          },
+          {
+            category: "黄金零式（至天の座アルカディア）",
+            items: [
+              { id: 3575, name: "LH級", patch: "7.05" },
+              { id: 3630, name: "CR級", patch: "7.2" },
+              { id: 3868, name: "HV級", patch: "7.4" },
+            ],
+          },
+          {
+            category: "暁月零式（万魔殿パンデモニウム）",
+            items: [
+              { id: 3038, name: "辺獄", patch: "6.05" },
+              { id: 3111, name: "煉獄", patch: "6.2" },
+              { id: 3251, name: "天獄", patch: "6.4" },
+            ],
+          },
+          {
+            category: "異聞零式",
+            items: [
+              {
+                id: 3156,
+                name: "シラディハ",
+                patch: "6.25",
+                title: "Infamy of Sil'dih",
+              },
+              {
+                id: 3340,
+                name: "六根山",
+                patch: "6.45",
+                title: "Ascendant Ascetic",
+              },
+              {
+                id: 3350,
+                name: "アロアロ",
+                patch: "6.51",
+                title: "Force of Nature",
+              },
+              { id: 3428, name: "異聞零式三種", title: "Epic Hero" },
+            ],
+          },
+          {
+            category: "詩想シリーズ（最大供物）",
+            items: [
+              {
+                id: 3819,
+                name: "エミネントグリーフ",
+                patch: "7.35",
+                title: "the Mourner of Light",
+              },
+            ],
+          },
+        ];
         const state = {
           kind: "mounts",
           masters: {},
@@ -1222,6 +1482,8 @@
             achievements: "idle",
             achievementError: "",
           },
+          highEnd: { status: "idle", dates: {} },
+          fflogs: { status: "idle", data: null },
           view: "detail",
           collectionSummaryFilter: null,
           filter: {
@@ -1513,6 +1775,62 @@
           state.owned.achievements = owned;
           if (character) state.character = character;
           state.status.achievements = "complete";
+          await loadHighEndHistory(id);
+        }
+        async function loadHighEndHistory(id) {
+          const ownedIds = HIGH_END_CATALOG.flatMap((group) => group.items)
+            .map((item) => item.id)
+            .filter((achievementId) =>
+              state.owned.achievements.has(achievementId),
+            );
+          state.highEnd = { status: "loading", dates: {} };
+          if (!ownedIds.length) {
+            state.highEnd = { status: "complete", dates: {} };
+            return;
+          }
+          try {
+            progress(`高難易度の踏破日時を確認中… ${ownedIds.length}件`);
+            const response = await fetch(
+              `/api/lodestone-achievement-dates?id=${encodeURIComponent(id)}&lang=ja&ids=${encodeURIComponent(ownedIds.join(","))}`,
+            );
+            if (!response.ok)
+              throw Error(`戦績取得エラー（${response.status}）`);
+            const payload = await response.json();
+            state.highEnd = { status: "complete", dates: payload.dates || {} };
+          } catch {
+            state.highEnd = { status: "error", dates: {} };
+          }
+        }
+        function localFFLogsProfileUrl(character) {
+          const world = String(character?.server || "")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "-");
+          const name = String(character?.name || "").trim();
+          return world && name
+            ? `https://ja.fflogs.com/character/jp/${encodeURIComponent(world)}/${encodeURIComponent(name)}`
+            : "https://ja.fflogs.com/";
+        }
+        async function loadFFLogsSummary(character) {
+          if (!character?.name || !character?.server) return;
+          state.fflogs = { status: "loading", data: null };
+          renderCombatProfile();
+          try {
+            const response = await fetch(
+              `/api/fflogs-summary?name=${encodeURIComponent(character.name)}&world=${encodeURIComponent(character.server)}&dc=${encodeURIComponent(character.data_center || "")}`,
+            );
+            if (!response.ok) throw Error(`fflogs_${response.status}`);
+            state.fflogs = { status: "complete", data: await response.json() };
+          } catch {
+            state.fflogs = {
+              status: "error",
+              data: {
+                configured: false,
+                profile_url: localFFLogsProfileUrl(character),
+              },
+            };
+          }
+          renderCombatProfile();
         }
         function sourceOptions(records) {
           const values = [
@@ -1783,6 +2101,75 @@
             off = c * (1 - (percent || 0) / 100);
           return `<div class="ring"><svg width="98" height="98" viewBox="0 0 98 98"><circle class="track" cx="49" cy="49" r="${r}"></circle><circle class="fill" cx="49" cy="49" r="${r}" stroke="url(#${gradient})" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${c.toFixed(1)}" data-off="${off.toFixed(1)}"></circle><text class="pct${dim ? " small" : ""}" x="49" y="${dim ? 54 : 55}" text-anchor="middle" transform="rotate(90 49 49)">${center}</text></svg><div class="lab">${label}</div><div class="cnt">${sub}</div></div>`;
         }
+        function displayDate(timestamp) {
+          const seconds = Number(timestamp);
+          if (!Number.isFinite(seconds) || seconds <= 0) return "達成日未取得";
+          return new Intl.DateTimeFormat("ja-JP", {
+            timeZone: "Asia/Tokyo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(seconds * 1000));
+        }
+        function displayPercentile(value) {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? numeric.toFixed(1) : "—";
+        }
+        function renderCombatProfile() {
+          const panel = el("combatProfile");
+          const character = state.character || {};
+          if (!character.name) {
+            panel.classList.remove("show");
+            panel.innerHTML = "";
+            return;
+          }
+          const achievementReady = state.status.achievements === "complete";
+          const dates = state.highEnd.dates || {};
+          const total = HIGH_END_CATALOG.flatMap((group) => group.items).length;
+          const earned = HIGH_END_CATALOG.flatMap(
+            (group) => group.items,
+          ).filter((item) => state.owned.achievements.has(item.id)).length;
+          const groups = HIGH_END_CATALOG.map((group) => {
+            const groupEarned = group.items.filter((item) =>
+              state.owned.achievements.has(item.id),
+            ).length;
+            const rows = group.items
+              .map((item) => {
+                const complete = state.owned.achievements.has(item.id);
+                const date = complete
+                  ? dates[item.id]
+                    ? displayDate(dates[item.id])
+                    : state.highEnd.status === "loading"
+                      ? "達成日確認中"
+                      : state.highEnd.status === "error"
+                        ? "日時取得不可"
+                        : "達成日未取得"
+                  : "未達成";
+                const title = [
+                  item.patch ? `Patch ${item.patch}` : "",
+                  item.title || "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return `<div class="high-end-entry ${complete ? "complete" : ""}" title="${esc(title || item.name)}"><i aria-hidden="true"></i><span class="high-end-name">${esc(item.name)}</span><span class="high-end-date">${esc(date)}</span></div>`;
+              })
+              .join("");
+            return `<section class="high-end-group"><h3><span>${esc(group.category)}</span><small>${n(groupEarned)} / ${n(group.items.length)}</small></h3><div class="high-end-list">${rows}</div></section>`;
+          }).join("");
+          const fflogs = state.fflogs.data || {};
+          const profileUrl =
+            fflogs.profile_url || localFFLogsProfileUrl(character);
+          const fflogsStatus =
+            state.fflogs.status === "loading"
+              ? "FF Logsの公開戦績を確認中…"
+              : !fflogs.configured
+                ? "平均パーフはFF Logs API認証情報の設定後に表示されます。プロフィールへのリンクは利用できます。"
+                : fflogs.found
+                  ? `API取得：${fflogs.fetched_at ? new Date(fflogs.fetched_at).toLocaleString("ja-JP") : "更新済み"}`
+                  : "公開戦績を取得できませんでした。FF Logsのキャラクターページで詳細を確認できます。";
+          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${achievementReady ? `達成 ${n(earned)} / ${n(total)}` : "アチーブメント取得中"}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><div class="fflogs-metrics"><div class="fflogs-metric"><span>平均DPSパーフ</span><strong>${displayPercentile(fflogs.dps?.best)}</strong><small>best performance average</small></div><div class="fflogs-metric"><span>平均HPSパーフ</span><strong>${displayPercentile(fflogs.hps?.best)}</strong><small>best performance average</small></div></div><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div>`;
+          panel.classList.add("show");
+        }
         function header() {
           const c = state.character || {},
             s = state.status,
@@ -1825,6 +2212,7 @@
                 ),
             ),
           );
+          renderCombatProfile();
         }
         function collectionCard(x, owned) {
           const s = x.sources[0],
@@ -1997,6 +2385,8 @@
             achievements: new Set(),
           };
           state.character = null;
+          state.highEnd = { status: "idle", dates: {} };
+          state.fflogs = { status: "idle", data: null };
           state.collectionSummaryFilter = null;
           state.status = {
             collections: "loading",
@@ -2009,6 +2399,7 @@
           try {
             await loadCollections(id);
             showBoard();
+            void loadFFLogsSummary(state.character);
             state.status.achievements = "loading";
             header();
             render();

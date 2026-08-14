@@ -419,16 +419,74 @@
       }
       .combat-profile-head {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px 12px;
         margin-bottom: 8px;
         color: var(--mist);
         font: 11px var(--mono);
       }
+      .combat-profile-title,
+      .combat-profile-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        flex-wrap: wrap;
+      }
+      .combat-profile-actions {
+        justify-content: flex-end;
+      }
       .combat-profile-head b {
         color: var(--foam);
         font-size: 13px;
+      }
+      .share-copy,
+      .share-mode-return {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        border: 1px solid rgba(131, 182, 255, 0.42);
+        border-radius: 999px;
+        padding: 5px 10px;
+        background: rgba(131, 182, 255, 0.1);
+        color: var(--ice);
+        font: 700 10px var(--mono);
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 160ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .share-copy:hover,
+      .share-mode-return:hover {
+        background: rgba(131, 182, 255, 0.18);
+      }
+      .share-copy:active {
+        transform: scale(0.97);
+      }
+      .share-copy:focus-visible,
+      .share-mode-return:focus-visible {
+        outline: 2px solid var(--amethyst);
+        outline-offset: 2px;
+      }
+      body.share-mode .hero,
+      body.share-mode .rate-note,
+      body.share-mode .collection-summary,
+      body.share-mode .achievement-summary,
+      body.share-mode .controls,
+      body.share-mode .grid,
+      body.share-mode .foot {
+        display: none !important;
+      }
+      body.share-mode .board {
+        margin-top: 32px;
+      }
+      body.share-mode .charcard {
+        padding: 16px 20px;
+      }
+      body.share-mode .charcard .rings {
+        display: none;
       }
       .combat-profile-grid {
         display: grid;
@@ -1273,6 +1331,21 @@
         }
       }
       @media (max-width: 560px) {
+        .combat-profile-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .combat-profile-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .share-copy,
+        .share-mode-return {
+          flex: 1 1 auto;
+        }
+        body.share-mode .board {
+          margin-top: 18px;
+        }
         .fflogs-tier-row { grid-template-columns: 1fr; }
         .fflogs-era { padding: 6px; }
         .fflogs-era-head { margin-bottom: 5px; }
@@ -1668,6 +1741,8 @@
             achievements: new Set(),
           },
           character: null,
+          lodestoneId: "",
+          shareMode: false,
           status: {
             collections: "idle",
             achievements: "idle",
@@ -1905,6 +1980,7 @@
           x.textContent = text;
         }
         async function loadCollections(id) {
+          state.lodestoneId = id;
           const [mounts, minions, res] = await Promise.all([
             master("mounts"),
             master("minions"),
@@ -1941,9 +2017,10 @@
             total = 1,
             character = null;
           while (page <= total) {
-            progress(
-              `マウント／ミニオンを表示中。アチーブメントを取得中… ${page}/${total}`,
-            );
+            const progressLabel = state.shareMode
+              ? "高難易度戦績を読み込み中…"
+              : "マウント／ミニオンを表示中。アチーブメントを取得中…";
+            progress(`${progressLabel} ${page}/${total}`);
             const r = await fetch(
               `/api/lodestone-achievements?id=${encodeURIComponent(id)}&lang=ja&page=${page}`,
             );
@@ -2473,7 +2550,18 @@
           const tierMarkup = tiers.length
             ? `<div class="fflogs-era-list">${eraMarkup}${otherMarkup}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
-          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS最高／平均・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
+          const normalUrl = new URL(window.location.href);
+          normalUrl.search = "";
+          normalUrl.hash = "";
+          const shareAction = state.shareMode
+            ? `<a class="share-mode-return" href="${esc(normalUrl.toString())}">エオルゼア蒐集図鑑で詳しく見る</a>`
+            : state.lodestoneId
+              ? '<button class="share-copy" type="button" data-copy-share-url>共有URLをコピー</button>'
+              : "";
+          panel.innerHTML = `<div class="combat-profile-head"><div class="combat-profile-title"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-actions">${shareAction}</div></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS最高／平均・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
+          panel.querySelector("[data-copy-share-url]")?.addEventListener("click", (event) => {
+            copyShareUrl(event.currentTarget);
+          });
           panel.classList.add("show");
         }
         function header() {
@@ -2508,7 +2596,7 @@
                 ? ring(0, "アチーブ", "要確認", "取得不可", "ga", true)
                 : ring(0, "アチーブ", "…", "取得中", "ga", true);
           el("charcard").innerHTML =
-            `<svg width="0" height="0"><defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#948ae8"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#948ae8"/></linearGradient></defs></svg>${portrait}<div class="who"><div class="name">${esc(c.name || "キャラクター")}</div><div class="meta">${esc(c.server || "")} ${c.data_center ? "[" + esc(c.data_center) + "]" : ""}</div><div class="detail">ロードストーンの公開コレクション・アチーブメントを参照</div></div><div class="rings">${ring(pm, "マウント", Math.round(pm) + "%", `${n(om)} / ${n(tm)}`, "gm", false)}${ring(pi, "ミニオン", Math.round(pi) + "%", `${n(oi)} / ${n(ti)}`, "gi", false)}${ach}</div>`;
+            `<svg width="0" height="0"><defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#948ae8"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#948ae8"/></linearGradient></defs></svg>${portrait}<div class="who"><div class="name">${esc(c.name || "キャラクター")}</div><div class="meta">${esc(c.server || "")} ${c.data_center ? "[" + esc(c.data_center) + "]" : ""}</div><div class="detail">${state.shareMode ? "高難易度戦績・FF Logs パフォーマンス共有" : "ロードストーンの公開コレクション・アチーブメントを参照"}</div></div><div class="rings">${ring(pm, "マウント", Math.round(pm) + "%", `${n(om)} / ${n(tm)}`, "gm", false)}${ring(pi, "ミニオン", Math.round(pi) + "%", `${n(oi)} / ${n(ti)}`, "gi", false)}${ach}</div>`;
           requestAnimationFrame(() =>
             requestAnimationFrame(() =>
               el("charcard")
@@ -2695,6 +2783,88 @@
           el("board").classList.add("show");
           el("board").scrollIntoView({ block: "start" });
         }
+        function shareUrl() {
+          const url = new URL(window.location.href);
+          url.search = "";
+          url.hash = "";
+          url.searchParams.set("share", "1");
+          url.searchParams.set("id", state.lodestoneId);
+          return url.toString();
+        }
+        async function copyShareUrl(button) {
+          const original = button.textContent;
+          try {
+            const url = shareUrl();
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(url);
+            } else {
+              const textarea = document.createElement("textarea");
+              textarea.value = url;
+              textarea.setAttribute("readonly", "");
+              textarea.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+              document.body.append(textarea);
+              textarea.select();
+              const copied = document.execCommand("copy");
+              textarea.remove();
+              if (!copied) throw Error("copy_failed");
+            }
+            button.textContent = "コピーしました！";
+          } catch {
+            button.textContent = "コピーできませんでした";
+          }
+          window.setTimeout(() => {
+            button.textContent = original;
+          }, 1800);
+        }
+        async function searchForShare(id) {
+          if (state.loading) return;
+          state.loading = true;
+          state.lodestoneId = id;
+          state.shareMode = true;
+          state.kind = "combat";
+          state.owned = {
+            mounts: new Set(),
+            minions: new Set(),
+            achievements: new Set(),
+          };
+          state.character = null;
+          state.highEnd = { status: "idle", dates: {} };
+          state.fflogs = { status: "idle", data: null };
+          state.collectionSummaryFilter = null;
+          state.status = {
+            collections: "complete",
+            achievements: "loading",
+            achievementError: "",
+          };
+          document.body.classList.add("share-mode");
+          el("board").classList.add("show");
+          el("charcard").innerHTML = '<div class="who"><div class="name">高難易度戦績を読み込み中…</div><div class="detail">ロードストーンの公開アチーブメントとFF Logsの公開戦績を確認しています。</div></div>';
+          progress("高難易度戦績を読み込み中…");
+          render();
+          try {
+            await loadAchievements(id);
+            header();
+            render();
+            progress("", false);
+            void loadFFLogsSummary(state.character);
+          } catch (error) {
+            state.status.achievements = "error";
+            state.status.achievementError = error.message || "高難易度戦績を取得できませんでした。";
+            el("charcard").innerHTML = `<div class="who"><div class="name">共有データを表示できません</div><div class="detail">${esc(state.status.achievementError)}</div></div>`;
+            progress("", false);
+            render();
+          } finally {
+            state.loading = false;
+          }
+        }
+        function initShareMode() {
+          const params = new URLSearchParams(window.location.search);
+          const id = idOf(params.get("id"));
+          if (params.get("share") !== "1" || !id) return;
+          state.shareMode = true;
+          document.body.classList.add("share-mode");
+          void searchForShare(id);
+        }
         async function search() {
           if (state.loading) return;
           const id = idOf(el("cid").value);
@@ -2706,6 +2876,8 @@
             return;
           }
           state.loading = true;
+          state.shareMode = false;
+          state.lodestoneId = id;
           clearMessage();
           state.owned = {
             mounts: new Set(),
@@ -2807,6 +2979,7 @@
         el("cid").addEventListener("keydown", (e) => {
           if (e.key === "Enter") search();
         });
+        initShareMode();
       })();
     </script>
   </body>

@@ -118,7 +118,7 @@
         color: var(--mist);
       }
       .wrap {
-        max-width: 1180px;
+        max-width: 1420px;
         margin: auto;
         padding: 0 20px 48px;
       }
@@ -616,6 +616,33 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 7px;
+      }
+      .fflogs-era-list {
+        display: grid;
+        gap: 12px;
+      }
+      .fflogs-era {
+        min-width: 0;
+        padding: 8px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 7px;
+        background: linear-gradient(135deg, rgba(131, 182, 255, .06), rgba(27, 20, 64, .18));
+      }
+      .fflogs-era-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0 0 7px;
+        padding: 0 2px 5px;
+        border-bottom: 1px solid rgba(131, 182, 255, .16);
+      }
+      .fflogs-era-head b { color: var(--foam); font-size: 11px; }
+      .fflogs-era-head span { color: var(--dim); font: 8px var(--mono); }
+      .fflogs-tier-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
       }
       .fflogs-tier {
         min-width: 0;
@@ -1188,6 +1215,9 @@
           grid-template-columns: 1fr;
         }
       }
+      @media (max-width: 900px) {
+        .fflogs-tier-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
       @media (max-width: 780px) {
         .site {
           height: 56px;
@@ -1238,6 +1268,9 @@
         }
       }
       @media (max-width: 560px) {
+        .fflogs-tier-row { grid-template-columns: 1fr; }
+        .fflogs-era { padding: 6px; }
+        .fflogs-era-head { margin-bottom: 5px; }
         .fflogs-card {
           align-items: flex-start;
           gap: 3px 8px;
@@ -2419,10 +2452,22 @@
                 ? `達成 ${n(earned)} / ${n(total)}`
                 : "アチーブメント取得中";
           const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
+          const renderTierCard = (tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`;
+          const tierByKey = new Map(tiers.map((tier) => [tier.key, tier]));
+          const eraDefinitions = [
+            { label: "暁月零式", versions: "6.0 / 6.2 / 6.4", tierKeys: ["asphodelos", "abyssos", "anabaseios"] },
+            { label: "黄金零式", versions: "7.0 / 7.2 / 7.4", tierKeys: ["light-heavyweight", "cruiserweight", "heavyweight"] },
+          ];
+          const knownTierKeys = new Set(eraDefinitions.flatMap((era) => era.tierKeys));
+          const eraMarkup = eraDefinitions.map((era) => {
+            const eraTiers = era.tierKeys.map((key) => tierByKey.get(key)).filter(Boolean);
+            if (!eraTiers.length) return "";
+            return `<section class="fflogs-era"><div class="fflogs-era-head"><b>${esc(era.label)}</b><span>Patch ${esc(era.versions)}</span></div><div class="fflogs-tier-row">${eraTiers.map(renderTierCard).join("")}</div></section>`;
+          }).join("");
+          const otherTiers = tiers.filter((tier) => !knownTierKeys.has(tier.key));
+          const otherMarkup = otherTiers.length ? `<section class="fflogs-era"><div class="fflogs-era-head"><b>その他の零式</b><span>公開戦績</span></div><div class="fflogs-tier-row">${otherTiers.map(renderTierCard).join("")}</div></section>` : "";
           const tierMarkup = tiers.length
-            ? `<div class="fflogs-tier-grid">${tiers
-                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
-                .join("")}</div>`
+            ? `<div class="fflogs-era-list">${eraMarkup}${otherMarkup}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
           panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
           panel.classList.add("show");

@@ -1202,7 +1202,10 @@
       (() => {
         "use strict";
         const API = "https://ffxivcollect.com/api",
-          HASH_VERSION = "icon-hash-v2",
+          HASH_VERSION = "icon-hash-v3",
+          MASTER_CACHE_VERSION = "v5",
+          MATCH_DISTANCE = 7,
+          RELAXED_MATCH_MIN_GAP = 2,
           MASTER_TTL = 21 * 864e5,
           el = (id) => document.getElementById(id);
         const state = {
@@ -1260,7 +1263,7 @@
         }
         async function master(kind) {
           if (state.masters[kind]) return state.masters[kind];
-          const key = `ecl-master-v4-${kind}-ja`;
+          const key = `ecl-master-${MASTER_CACHE_VERSION}-${kind}-ja`;
           try {
             const c = JSON.parse(localStorage.getItem(key) || "null");
             if (c && Date.now() - c.time < MASTER_TTL) {
@@ -1418,17 +1421,30 @@
           return n;
         }
         function idsFor(hash, index) {
+          // Exact hashes are always accepted. For icon assets that differ slightly
+          // between Lodestone and game data, allow a measured relaxed match only
+          // when it is clearly separated from the next closest master icon.
           if (index[hash]) return index[hash];
-          let best = 5,
+          let best = Infinity,
+            nextBest = Infinity,
             ids = [];
           for (const key in index) {
             const d = distance(hash, key);
             if (d < best) {
+              nextBest = best;
               best = d;
               ids = index[key];
-            } else if (d === best) ids = ids.concat(index[key]);
+            } else if (d === best) {
+              ids = ids.concat(index[key]);
+            } else if (d < nextBest) {
+              nextBest = d;
+            }
           }
-          return best <= 4 ? ids : [];
+          if (best <= 4) return ids;
+          return best <= MATCH_DISTANCE &&
+            nextBest - best >= RELAXED_MATCH_MIN_GAP
+            ? ids
+            : [];
         }
         function progress(text, show = true) {
           const x = el("progress");

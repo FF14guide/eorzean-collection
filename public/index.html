@@ -406,8 +406,8 @@
       }
       .combat-profile {
         display: none;
-        margin-top: 16px;
-        padding: 14px;
+        margin-top: 14px;
+        padding: 11px;
         border: 1px solid var(--edge-soft);
         border-radius: var(--r);
         background:
@@ -422,7 +422,7 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         color: var(--mist);
         font: 11px var(--mono);
       }
@@ -432,18 +432,18 @@
       }
       .combat-profile-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.65fr) minmax(230px, 0.85fr);
-        gap: 12px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 9px;
       }
       .high-end-groups {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 9px;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 7px;
       }
       .high-end-group,
       .fflogs-card {
         min-width: 0;
-        padding: 10px;
+        padding: 8px;
         border: 1px solid var(--edge-soft);
         border-radius: 7px;
         background: rgba(8, 6, 20, 0.34);
@@ -534,7 +534,19 @@
       }
       .fflogs-card {
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 5px 12px;
+        padding: 8px 10px;
+      }
+      .fflogs-card h3 { margin: 0; }
+      .fflogs-card h3 small { margin-left: 6px; }
+      .fflogs-card .fflogs-link { margin: 0; }
+      .fflogs-card .fflogs-status {
+        flex: 1 1 220px;
+        margin: 0;
+        text-align: right;
       }
       .fflogs-link {
         display: inline-flex;
@@ -581,8 +593,8 @@
         line-height: 1.45;
       }
       .fflogs-content-card {
-        margin-top: 12px;
-        padding: 11px;
+        margin-top: 9px;
+        padding: 9px;
         border: 1px solid rgba(131, 182, 255, 0.26);
         border-radius: 7px;
         background: rgba(8, 6, 20, 0.3);
@@ -592,7 +604,7 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 9px;
+        margin-bottom: 6px;
         color: var(--mist);
         font: 10px var(--mono);
       }
@@ -602,18 +614,18 @@
       }
       .fflogs-tier-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 7px;
       }
       .fflogs-tier {
         min-width: 0;
-        padding: 8px;
+        padding: 7px;
         border: 1px solid var(--edge-soft);
         border-radius: 6px;
         background: rgba(27, 20, 64, 0.34);
       }
       .fflogs-tier h4 {
-        margin: 0 0 6px;
+        margin: 0 0 3px;
         color: var(--foam);
         font-size: 10px;
         line-height: 1.35;
@@ -668,7 +680,7 @@
       .fflogs-encounter-metric strong.parse-pink { color: #e268a8; }
       .fflogs-encounter-metric strong.parse-tan { color: #e5cc80; }
       .fflogs-tier-date {
-        margin: -2px 0 6px;
+        margin: 0 0 4px;
         color: var(--amber);
         font: 9px var(--mono);
       }
@@ -1174,6 +1186,25 @@
         }
       }
       @media (max-width: 560px) {
+        .fflogs-card {
+          align-items: flex-start;
+          gap: 3px 8px;
+        }
+        .fflogs-card .fflogs-status {
+          flex-basis: 100%;
+          text-align: left;
+        }
+        .fflogs-content-head {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 1px;
+        }
+        .fflogs-encounter {
+          grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+          gap: 3px;
+        }
+        .fflogs-encounter-metric { font-size: 7px; }
+        .fflogs-encounter-metric strong { font-size: 10px; }
         body {
           font-size: 14px;
         }
@@ -2265,7 +2296,13 @@
           const earned = HIGH_END_CATALOG.flatMap((group) => group.items).filter(
             (item) => state.owned.achievements.has(item.id),
           ).length;
-          const groups = HIGH_END_CATALOG.map((group) => {
+          // 零式6シリーズはFF Logsカード内へ討伐日と一体表示するため、
+          // ここには絶・異聞零式・詩想のみを残してコンテンツ名の重複を避ける。
+          const historyGroups = HIGH_END_CATALOG.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => !item.fflogsTier),
+          })).filter((group) => group.items.length);
+          const groups = historyGroups.map((group) => {
             const groupEarned = group.items.filter((item) =>
               state.owned.achievements.has(item.id),
             ).length;
@@ -2328,7 +2365,7 @@
                 .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}${fflogsMetricMarkup("HPS平均", encounter.hps)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
                 .join("")}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
-          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div><section class="fflogs-content-card"><div class="fflogs-content-head"><b>コンテンツ別 パーフ・討伐日</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>`;
+          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
           panel.classList.add("show");
         }
         function header() {

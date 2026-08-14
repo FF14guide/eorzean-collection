@@ -636,11 +636,11 @@
       }
       .fflogs-encounter {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+        grid-template-columns: minmax(76px, 1.25fr) repeat(3, minmax(44px, auto));
         align-items: center;
-        gap: 6px;
-        padding: 5px;
-        border-radius: 4px;
+        gap: 5px;
+        padding: 6px;
+        border-radius: 5px;
         background: rgba(255, 255, 255, 0.025);
       }
       .fflogs-encounter-name {
@@ -651,8 +651,11 @@
         display: block;
       }
       .fflogs-encounter-name b {
+        min-width: max-content;
         color: var(--mist);
         font-size: 10px;
+        letter-spacing: .01em;
+        white-space: nowrap;
       }
       .fflogs-encounter-name small {
         overflow: hidden;
@@ -662,6 +665,11 @@
         white-space: nowrap;
       }
       .fflogs-encounter-metric {
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: baseline;
+        column-gap: 2px;
+        min-width: 47px;
         color: var(--mist);
         font: 8px var(--mono);
         text-align: right;
@@ -671,18 +679,62 @@
         color: var(--ice);
         font: 800 12px var(--mono);
       }
+      .fflogs-parse-bar {
+        grid-column: 1 / -1;
+        display: block;
+        height: 3px;
+        overflow: hidden;
+        margin-top: 2px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, .1);
+      }
+      .fflogs-parse-bar i {
+        display: block;
+        width: var(--parse-width, 0%);
+        height: 100%;
+        border-radius: inherit;
+        background: var(--parse-color, var(--ice));
+        box-shadow: 0 0 8px color-mix(in srgb, var(--parse-color, var(--ice)) 65%, transparent);
+      }
       .fflogs-encounter-metric strong.parse-none { color: var(--dim); }
-      .fflogs-encounter-metric strong.parse-gray { color: #9d9d9d; }
-      .fflogs-encounter-metric strong.parse-green { color: #1eff00; }
-      .fflogs-encounter-metric strong.parse-blue { color: #0070ff; }
-      .fflogs-encounter-metric strong.parse-purple { color: #a335ee; }
-      .fflogs-encounter-metric strong.parse-orange { color: #ff8000; }
-      .fflogs-encounter-metric strong.parse-pink { color: #e268a8; }
-      .fflogs-encounter-metric strong.parse-tan { color: #e5cc80; }
+      .fflogs-encounter-metric strong.parse-gray, .fflogs-parse-bar.parse-gray { --parse-color: #9d9d9d; color: #9d9d9d; }
+      .fflogs-encounter-metric strong.parse-green, .fflogs-parse-bar.parse-green { --parse-color: #1eff00; color: #1eff00; }
+      .fflogs-encounter-metric strong.parse-blue, .fflogs-parse-bar.parse-blue { --parse-color: #0070ff; color: #0070ff; }
+      .fflogs-encounter-metric strong.parse-purple, .fflogs-parse-bar.parse-purple { --parse-color: #a335ee; color: #a335ee; }
+      .fflogs-encounter-metric strong.parse-orange, .fflogs-parse-bar.parse-orange { --parse-color: #ff8000; color: #ff8000; }
+      .fflogs-encounter-metric strong.parse-pink, .fflogs-parse-bar.parse-pink { --parse-color: #e268a8; color: #e268a8; }
+      .fflogs-encounter-metric strong.parse-tan, .fflogs-parse-bar.parse-tan { --parse-color: #e5cc80; color: #e5cc80; }
       .fflogs-tier-date {
-        margin: 0 0 4px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 3px;
+        min-height: 22px;
+        margin: 0 0 5px;
+        padding: 3px 4px;
+        border: 1px solid rgba(242, 193, 94, .2);
+        border-radius: 4px;
+        background: linear-gradient(90deg, rgba(242, 193, 94, .1), transparent 72%);
         color: var(--amber);
-        font: 9px var(--mono);
+        font: 8px var(--mono);
+      }
+      .fflogs-tier-date .date-node {
+        padding: 1px 3px;
+        border-radius: 3px;
+        background: rgba(242, 193, 94, .14);
+        white-space: nowrap;
+      }
+      .fflogs-tier-date .date-line {
+        width: 12px;
+        height: 1px;
+        background: var(--amber);
+        opacity: .65;
+      }
+      .fflogs-tier-date b {
+        margin-left: auto;
+        color: var(--foam);
+        font-weight: 800;
+        white-space: nowrap;
       }
       .fflogs-tier-date.pending,
       .fflogs-tier-date.unclaimed { color: var(--dim); }
@@ -1200,11 +1252,13 @@
           gap: 1px;
         }
         .fflogs-encounter {
-          grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+          grid-template-columns: minmax(73px, 1fr) repeat(3, minmax(39px, auto));
           gap: 3px;
         }
-        .fflogs-encounter-metric { font-size: 7px; }
+        .fflogs-encounter-metric { min-width: 39px; font-size: 7px; }
         .fflogs-encounter-metric strong { font-size: 10px; }
+        .fflogs-tier-date { gap: 2px; font-size: 7px; }
+        .fflogs-tier-date .date-line { width: 7px; }
         body {
           font-size: 14px;
         }
@@ -2263,9 +2317,14 @@
           if (numeric >= 25) return "parse-green";
           return "parse-gray";
         }
+        function fflogsParseWidth(value) {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)).toFixed(1) : "0";
+        }
         function fflogsMetricMarkup(label, value) {
           const display = displayPercentile(value);
-          return `<span class="fflogs-encounter-metric">${esc(label)} <strong class="${fflogsParseClass(value)}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong></span>`;
+          const parseClass = fflogsParseClass(value);
+          return `<span class="fflogs-encounter-metric">${esc(label)} <strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
         }
         function fflogsTierClearMarkup(tierKey, dates) {
           const item = HIGH_END_CATALOG.flatMap((group) => group.items).find(
@@ -2275,8 +2334,8 @@
           const timestamp = dates[item.id];
           if (timestamp) {
             const elapsed = daysFromRelease(item.released, timestamp);
-            const elapsedText = elapsed === null ? "" : elapsed === 0 ? "（実装当日）" : `（実装から${n(elapsed)}日）`;
-            return `<p class="fflogs-tier-date">討伐日 ${esc(displayDate(timestamp))}${esc(elapsedText)}</p>`;
+            const elapsedText = elapsed === null ? "" : elapsed === 0 ? "実装当日" : `+${n(elapsed)}日`;
+            return `<p class="fflogs-tier-date"><span class="date-node">${esc(displayReleaseDate(item.released))}</span><span class="date-line"></span><span class="date-node">討伐 ${esc(displayDate(timestamp))}</span>${elapsedText ? `<b>${esc(elapsedText)}</b>` : ""}</p>`;
           }
           if (state.highEnd.status === "loading")
             return '<p class="fflogs-tier-date pending">討伐日を確認中…</p>';
@@ -2362,7 +2421,7 @@
           const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
           const tierMarkup = tiers.length
             ? `<div class="fflogs-tier-grid">${tiers
-                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}${fflogsMetricMarkup("HPS平均", encounter.hps)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
+                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
                 .join("")}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
           panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;

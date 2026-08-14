@@ -454,6 +454,22 @@
         border: 1px solid var(--edge-soft);
         border-radius: 7px;
         background: rgba(8, 6, 20, 0.38);
+        color: var(--foam);
+        cursor: pointer;
+        text-align: left;
+      }
+      .summary-progress:hover,
+      .summary-progress:focus-visible {
+        border-color: var(--amethyst);
+        outline: none;
+      }
+      .summary-progress.on {
+        border-color: rgba(242, 193, 94, 0.65);
+        background: linear-gradient(
+          135deg,
+          rgba(242, 193, 94, 0.12),
+          rgba(27, 20, 64, 0.55)
+        );
       }
       .summary-progress .summary-name {
         display: block;
@@ -1204,6 +1220,7 @@
             achievementError: "",
           },
           view: "detail",
+          collectionSummaryFilter: null,
           filter: {
             state: "all",
             q: "",
@@ -1623,7 +1640,11 @@
         }
         function collectionSummaryCard(row) {
           const rate = row.total ? (row.owned / row.total) * 100 : 0;
-          return `<article class="summary-progress"><span class="summary-name">${esc(row.label)}</span><strong>${n(row.owned)} / ${n(row.total)}</strong><small>${rate.toFixed(1)}%</small><i style="--rate:${rate.toFixed(2)}%"></i></article>`;
+          const active =
+            state.collectionSummaryFilter &&
+            state.collectionSummaryFilter.type === row.filter.type &&
+            state.collectionSummaryFilter.value === row.filter.value;
+          return `<button type="button" class="summary-progress ${active ? "on" : ""}" data-collection-filter-type="${esc(row.filter.type)}" data-collection-filter-value="${esc(row.filter.value)}" aria-pressed="${active}" title="クリックして一覧を絞り込みます。もう一度押すと解除します。"><span class="summary-name">${esc(row.label)}</span><strong>${n(row.owned)} / ${n(row.total)}</strong><small>${rate.toFixed(1)}%</small><i style="--rate:${rate.toFixed(2)}%"></i></button>`;
         }
         function renderCollectionSummary(records, owned) {
           const summary = el("collectionSummary");
@@ -1641,6 +1662,7 @@
             const info = expansionInfo(record);
             const row = expansions.get(info.key) || {
               ...info,
+              filter: { type: "expansion", value: info.key },
               total: 0,
               owned: 0,
             };
@@ -1651,14 +1673,17 @@
           const profileRows = [
             {
               label: "課金要素なし",
+              filter: { type: "no-paid", value: "yes" },
               matches: (record) => !profile(record).paid,
             },
             {
               label: "MB購入可",
+              filter: { type: "market", value: "yes" },
               matches: (record) => profile(record).market,
             },
             {
               label: "アチーブ／クエスト報酬",
+              filter: { type: "reward", value: "achievement-or-quest" },
               matches: (record) =>
                 (record.sources || []).some((source) =>
                   ["Achievement", "Quest"].includes(source.type),
@@ -1668,6 +1693,7 @@
             const selected = records.filter(definition.matches);
             return {
               label: definition.label,
+              filter: definition.filter,
               total: selected.length,
               owned: selected.filter((record) => owned.has(record.id)).length,
             };
@@ -1687,6 +1713,47 @@
                 "",
               )}</div></section><section class="summary-group"><span class="summary-group-title">入手条件別</span><div class="summary-cards">${profileRows.map(collectionSummaryCard).join("")}</div></section></div>`;
           summary.classList.add("show");
+          summary
+            .querySelectorAll("[data-collection-filter-type]")
+            .forEach((button) =>
+              button.addEventListener("click", () => {
+                const next = {
+                  type: button.dataset.collectionFilterType,
+                  value: button.dataset.collectionFilterValue,
+                };
+                const current = state.collectionSummaryFilter;
+                state.collectionSummaryFilter =
+                  current &&
+                  current.type === next.type &&
+                  current.value === next.value
+                    ? null
+                    : next;
+                state.filter.q = "";
+                el("q").value = "";
+                state.filter.source = "all";
+                state.filter.market = "all";
+                state.filter.availability = "all";
+                state.filter.premium = "all";
+                el("source").value = "all";
+                el("market").value = "all";
+                el("availability").value = "all";
+                el("premium").value = "all";
+                rerender();
+              }),
+            );
+        }
+        function collectionSummaryMatches(record) {
+          const filter = state.collectionSummaryFilter;
+          if (!filter) return true;
+          if (filter.type === "expansion")
+            return expansionInfo(record).key === filter.value;
+          if (filter.type === "no-paid") return !profile(record).paid;
+          if (filter.type === "market") return profile(record).market;
+          if (filter.type === "reward")
+            return (record.sources || []).some((source) =>
+              ["Achievement", "Quest"].includes(source.type),
+            );
+          return true;
         }
         function ownershipRateTag(x) {
           const value = String(x.owned || "").trim();
@@ -1828,6 +1895,7 @@
             )
               return false;
             if (!isAch) {
+              if (!collectionSummaryMatches(x)) return false;
               const p = profile(x);
               if (
                 f.source !== "all" &&
@@ -1913,6 +1981,7 @@
             achievements: new Set(),
           };
           state.character = null;
+          state.collectionSummaryFilter = null;
           state.status = {
             collections: "loading",
             achievements: "idle",
@@ -1963,6 +2032,7 @@
           b.addEventListener("click", () => {
             state.kind = b.dataset.kind;
             state.filter.source = "all";
+            state.collectionSummaryFilter = null;
             rerender();
           }),
         );

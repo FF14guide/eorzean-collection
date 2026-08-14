@@ -6,7 +6,20 @@
     <title>エオルゼア蒐集図鑑</title>
     <meta
       name="description"
-      content="FFXIVのコレクション、高難易度の討伐日、FF Logsパーフをまとめて確認できるエオルゼア蒐集図鑑。"
+      content="マウント、ミニオン、アチーブメント、高難易度の討伐日をまとめて確認できます。高難易度固定応募の履歴書も作成できます。"
+    />
+    <meta property="og:title" content="エオルゼア蒐集図鑑" />
+    <meta
+      property="og:description"
+      content="マウント、ミニオン、アチーブメント、高難易度の討伐日をまとめて確認できます。高難易度固定応募の履歴書も作成できます。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://collection.eorzeanfishing.com/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="エオルゼア蒐集図鑑" />
+    <meta
+      name="twitter:description"
+      content="マウント、ミニオン、アチーブメント、高難易度の討伐日をまとめて確認できます。高難易度固定応募の履歴書も作成できます。"
     />
     <meta name="theme-color" content="#0f0a20" />
     <link rel="canonical" href="https://collection.eorzeanfishing.com/" />
@@ -31,6 +44,7 @@
         --amber: #f2c15e;
         --coral: #ff8fa6;
         --ice: #83b6ff;
+        --green: #1eff00;
         --r: 9px;
         --shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.7);
         --sans:
@@ -763,8 +777,8 @@
       .fflogs-encounter-metric em {
         font-style: normal;
       }
-      .fflogs-encounter-metric.metric-dps em { color: var(--magenta); }
-      .fflogs-encounter-metric.metric-hps em { color: var(--ice); }
+      .fflogs-encounter-metric.metric-dps em { color: var(--foam); }
+      .fflogs-encounter-metric.metric-hps em { color: var(--green); }
       .fflogs-encounter-metric strong {
         color: var(--ice);
         font: 800 12px var(--mono);
@@ -1572,7 +1586,7 @@
         <p class="eyebrow">EORZEA COLLECTION ATLAS</p>
         <h1>エオルゼア蒐集図鑑</h1>
         <p class="lede">
-          マウント、ミニオン、アチーブメント、高難易度の討伐日、FF Logsパーフをまとめて確認できます。
+          マウント、ミニオン、アチーブメント、高難易度の討伐日をまとめて確認できます。高難易度固定応募の履歴書も作成できます。
         </p>
         <div class="search">
           <label for="cid"
@@ -2448,7 +2462,7 @@
           const timestamp = dates[item.id];
           if (timestamp) {
             const elapsed = daysFromRelease(item.released, timestamp);
-            const elapsedText = elapsed === null ? "" : elapsed === 0 ? "実装当日" : `+${n(elapsed)}日`;
+            const elapsedText = elapsed === null ? "" : elapsed === 0 ? "実装当日" : `実装から${n(elapsed)}日`;
             return `<p class="fflogs-tier-date"><span class="date-node">${esc(displayReleaseDate(item.released))}</span><span class="date-line"></span><span class="date-node">討伐 ${esc(displayDate(timestamp))}</span>${elapsedText ? `<b>${esc(elapsedText)}</b>` : ""}</p>`;
           }
           if (state.highEnd.status === "loading")

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>エオルゼア蒐集録 — 所持チェッカー</title>
+    <title>エオルゼア蒐集図鑑 — 所持チェッカー</title>
     <meta
       name="description"
       content="ロードストーンの公開情報から、登録不要でFFXIVのマウント、ミニオン、アチーブメントを一度に照合します。"
@@ -624,7 +624,7 @@
       }
       .fflogs-encounter {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) repeat(3, auto);
         align-items: center;
         gap: 6px;
         padding: 5px;
@@ -659,6 +659,21 @@
         color: var(--ice);
         font: 800 12px var(--mono);
       }
+      .fflogs-encounter-metric strong.parse-none { color: var(--dim); }
+      .fflogs-encounter-metric strong.parse-gray { color: #9d9d9d; }
+      .fflogs-encounter-metric strong.parse-green { color: #1eff00; }
+      .fflogs-encounter-metric strong.parse-blue { color: #0070ff; }
+      .fflogs-encounter-metric strong.parse-purple { color: #a335ee; }
+      .fflogs-encounter-metric strong.parse-orange { color: #ff8000; }
+      .fflogs-encounter-metric strong.parse-pink { color: #e268a8; }
+      .fflogs-encounter-metric strong.parse-tan { color: #e5cc80; }
+      .fflogs-tier-date {
+        margin: -2px 0 6px;
+        color: var(--amber);
+        font: 9px var(--mono);
+      }
+      .fflogs-tier-date.pending,
+      .fflogs-tier-date.unclaimed { color: var(--dim); }
       .fflogs-content-empty {
         margin: 0;
         color: var(--dim);
@@ -1324,7 +1339,7 @@
   </head>
   <body>
     <header class="site">
-      <a class="brand" href="./" aria-label="エオルゼア蒐集録"
+      <a class="brand" href="./" aria-label="エオルゼア蒐集図鑑"
         ><span class="mark"
           ><svg
             viewBox="0 0 24 24"
@@ -1345,7 +1360,7 @@
               opacity=".9"
             /></svg></span
         ><span class="ttl"
-          ><b>エオルゼア蒐集録</b
+          ><b>エオルゼア蒐集図鑑</b
           ><span class="sub">EORZEAN COLLECTION</span></span
         ></a
       ><span class="grow"></span
@@ -1494,17 +1509,17 @@
           {
             category: "黄金零式（至天の座アルカディア）",
             items: [
-              { id: 3575, name: "LH級", patch: "7.05", released: "2024-07-30" },
-              { id: 3630, name: "CR級", patch: "7.2", released: "2025-04-01" },
-              { id: 3868, name: "HV級", patch: "7.4", released: "2026-01-06" },
+              { id: 3575, name: "LH級", patch: "7.05", released: "2024-07-30", fflogsTier: "light-heavyweight" },
+              { id: 3630, name: "CR級", patch: "7.2", released: "2025-04-01", fflogsTier: "cruiserweight" },
+              { id: 3868, name: "HV級", patch: "7.4", released: "2026-01-06", fflogsTier: "heavyweight" },
             ],
           },
           {
             category: "暁月零式（万魔殿パンデモニウム）",
             items: [
-              { id: 3038, name: "辺獄", patch: "6.05", released: "2022-01-04" },
-              { id: 3111, name: "煉獄", patch: "6.2", released: "2022-08-30" },
-              { id: 3251, name: "天獄", patch: "6.4", released: "2023-05-30" },
+              { id: 3038, name: "辺獄", patch: "6.05", released: "2022-01-04", fflogsTier: "asphodelos" },
+              { id: 3111, name: "煉獄", patch: "6.2", released: "2022-08-30", fflogsTier: "abyssos" },
+              { id: 3251, name: "天獄", patch: "6.4", released: "2023-05-30", fflogsTier: "anabaseios" },
             ],
           },
           {
@@ -1872,7 +1887,7 @@
           renderCombatProfile();
           try {
             const response = await fetch(
-              `/api/fflogs-content-performance?name=${encodeURIComponent(character.name)}&world=${encodeURIComponent(character.server)}&dc=${encodeURIComponent(character.data_center || "")}`,
+              `/api/fflogs-content-performance?name=${encodeURIComponent(character.name)}&world=${encodeURIComponent(character.server)}&dc=${encodeURIComponent(character.data_center || "")}&schema=2`,
             );
             if (!response.ok) throw Error(`fflogs_${response.status}`);
             state.fflogs = { status: "complete", data: await response.json() };
@@ -2206,6 +2221,36 @@
           const numeric = Number(value);
           return Number.isFinite(numeric) ? numeric.toFixed(1) : "—";
         }
+        function fflogsParseClass(value) {
+          const numeric = Number(value);
+          if (!Number.isFinite(numeric)) return "parse-none";
+          if (numeric >= 100) return "parse-tan";
+          if (numeric >= 99) return "parse-pink";
+          if (numeric >= 95) return "parse-orange";
+          if (numeric >= 75) return "parse-purple";
+          if (numeric >= 50) return "parse-blue";
+          if (numeric >= 25) return "parse-green";
+          return "parse-gray";
+        }
+        function fflogsMetricMarkup(label, value) {
+          const display = displayPercentile(value);
+          return `<span class="fflogs-encounter-metric">${esc(label)} <strong class="${fflogsParseClass(value)}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong></span>`;
+        }
+        function fflogsTierClearMarkup(tierKey, dates) {
+          const item = HIGH_END_CATALOG.flatMap((group) => group.items).find(
+            (candidate) => candidate.fflogsTier === tierKey,
+          );
+          if (!item) return "";
+          const timestamp = dates[item.id];
+          if (timestamp) {
+            const elapsed = daysFromRelease(item.released, timestamp);
+            const elapsedText = elapsed === null ? "" : elapsed === 0 ? "（実装当日）" : `（実装から${n(elapsed)}日）`;
+            return `<p class="fflogs-tier-date">討伐日 ${esc(displayDate(timestamp))}${esc(elapsedText)}</p>`;
+          }
+          if (state.highEnd.status === "loading")
+            return '<p class="fflogs-tier-date pending">討伐日を確認中…</p>';
+          return '<p class="fflogs-tier-date unclaimed">討伐日 未達成</p>';
+        }
         function renderCombatProfile() {
           const panel = el("combatProfile");
           const character = state.character || {};
@@ -2280,10 +2325,10 @@
           const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
           const tierMarkup = tiers.length
             ? `<div class="fflogs-tier-grid">${tiers
-                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4><div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span><span class="fflogs-encounter-metric">DPS <strong>${displayPercentile(encounter.dps)}</strong></span><span class="fflogs-encounter-metric">HPS <strong>${displayPercentile(encounter.hps)}</strong></span></div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
+                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}${fflogsMetricMarkup("HPS平均", encounter.hps)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
                 .join("")}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
-          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div><section class="fflogs-content-card"><div class="fflogs-content-head"><b>コンテンツ別 平均パーフ</b><span>DPS／HPS・全パッチの公開戦績</span></div>${tierMarkup}</section>`;
+          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div><section class="fflogs-content-card"><div class="fflogs-content-head"><b>コンテンツ別 パーフ・討伐日</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>`;
           panel.classList.add("show");
         }
         function header() {

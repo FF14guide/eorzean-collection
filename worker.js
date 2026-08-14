@@ -494,15 +494,32 @@ function fflogsEncounterLabel(index, total) {
   return `${index + 1}層`;
 }
 
+function fflogsPercentileValues(value) {
+  return (Array.isArray(value?.ranks) ? value.ranks : [])
+    .map((rank) => Number(rank?.rankPercent))
+    .filter((percentile) => Number.isFinite(percentile));
+}
+
 function fflogsEncounterPerformance(value) {
   const average = Number(value?.averagePerformance);
   if (Number.isFinite(average)) return average;
-  const ranks = Array.isArray(value?.ranks) ? value.ranks : [];
-  const percentiles = ranks
-    .map((rank) => Number(rank?.rankPercent))
-    .filter((percentile) => Number.isFinite(percentile));
+  const percentiles = fflogsPercentileValues(value);
   if (!percentiles.length) return null;
   return percentiles.reduce((total, percentile) => total + percentile, 0) / percentiles.length;
+}
+
+function fflogsEncounterBestPerformance(value) {
+  const explicitBest = [
+    value?.bestPerformance,
+    value?.bestPerformanceAverage,
+    value?.bestPercent,
+  ]
+    .map((candidate) => Number(candidate))
+    .find((candidate) => Number.isFinite(candidate));
+  if (Number.isFinite(explicitBest)) return explicitBest;
+  const percentiles = fflogsPercentileValues(value);
+  if (percentiles.length) return Math.max(...percentiles);
+  return fflogsEncounterPerformance(value);
 }
 
 function fflogsTierPerformanceRows(tiers, character) {
@@ -516,6 +533,9 @@ function fflogsTierPerformanceRows(tiers, character) {
       name: encounter.name,
       label: fflogsEncounterLabel(index, tier.encounters.length),
       dps: fflogsEncounterPerformance(
+        character?.[`dps_${tier.zoneId}_${encounter.id}`],
+      ),
+      dps_best: fflogsEncounterBestPerformance(
         character?.[`dps_${tier.zoneId}_${encounter.id}`],
       ),
       hps: fflogsEncounterPerformance(
@@ -762,6 +782,7 @@ export {
   fflogsContentPerformanceQuery,
   fflogsEncounterLabel,
   fflogsEncounterPerformance,
+  fflogsEncounterBestPerformance,
   fflogsTierPerformanceRows,
   fflogsSafeErrorCode,
 };

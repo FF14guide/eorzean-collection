@@ -27,17 +27,17 @@ const MAX_HIGH_END_ACHIEVEMENTS = 24;
 const FFLOGS_TOKEN_URL = "https://www.fflogs.com/oauth/token";
 const FFLOGS_GRAPHQL_URL = "https://www.fflogs.com/api/v2/client";
 const FFLOGS_DC_REGION = {
-  elemental: "jp",
-  gaia: "jp",
-  mana: "jp",
-  meteor: "jp",
-  aether: "us",
-  crystal: "us",
-  dynamis: "us",
-  primal: "us",
-  chaos: "eu",
-  light: "eu",
-  materia: "oc",
+  elemental: "JP",
+  gaia: "JP",
+  mana: "JP",
+  meteor: "JP",
+  aether: "US",
+  crystal: "US",
+  dynamis: "US",
+  primal: "US",
+  chaos: "EU",
+  light: "EU",
+  materia: "OC",
 };
 const FFLOGS_SUMMARY_QUERY = `query CharacterSummary($name: String!, $serverSlug: String!, $serverRegion: String!) {
   characterData {
@@ -309,7 +309,7 @@ async function handleFFLogsSummary(request, env, ctx) {
         variables: {
           name,
           serverSlug: fflogsServerSlug(world),
-          serverRegion: FFLOGS_DC_REGION[dataCenter] || "jp",
+          serverRegion: FFLOGS_DC_REGION[dataCenter] || "JP",
         },
       }),
     });
@@ -371,16 +371,23 @@ async function handleFFLogsContentPerformance(request, env, ctx) {
       env.FFLOGS_CLIENT_ID,
       env.FFLOGS_CLIENT_SECRET,
     );
-    const metadataPayload = await fflogsGraphQL(token, FFLOGS_ZONE_METADATA_QUERY);
+    const metadataPayload = await fflogsGraphQL(
+      token,
+      FFLOGS_ZONE_METADATA_QUERY,
+      {},
+      "metadata",
+    );
     const tiers = fflogsRaidTiersFromMetadata(metadataPayload.data?.worldData);
+    if (!tiers.length) throw new Error("fflogs_metadata_empty");
     const performancePayload = await fflogsGraphQL(
       token,
       fflogsContentPerformanceQuery(tiers),
       {
         name,
         serverSlug: fflogsServerSlug(world),
-        serverRegion: FFLOGS_DC_REGION[dataCenter] || "jp",
+        serverRegion: FFLOGS_DC_REGION[dataCenter] || "JP",
       },
+      "rankings",
     );
     const character = performancePayload.data?.characterData?.character || null;
     const response = json(
@@ -396,14 +403,14 @@ async function handleFFLogsContentPerformance(request, env, ctx) {
     );
     ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
     return response;
-  } catch {
+  } catch (error) {
     return json(
       {
         configured: true,
         found: false,
         profile_url: profileUrl,
         tiers: [],
-        error: "fflogs_unavailable",
+        error: fflogsSafeErrorCode(error),
       },
       200,
       "no-store",
@@ -411,20 +418,40 @@ async function handleFFLogsContentPerformance(request, env, ctx) {
   }
 }
 
-async function fflogsGraphQL(token, query, variables = {}) {
-  const upstream = await fetch(FFLOGS_GRAPHQL_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!upstream.ok) throw new Error(`fflogs_${upstream.status}`);
-  const payload = await upstream.json();
-  if (payload.errors?.length) throw new Error("fflogs_graphql_error");
+async function fflogsGraphQL(token, query, variables = {}, stage = "query") {
+  let upstream;
+  try {
+    upstream = await fetch(FFLOGS_GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+  } catch {
+    throw new Error(`fflogs_${stage}_network`);
+  }
+  if (!upstream.ok) throw new Error(`fflogs_${stage}_http_${upstream.status}`);
+  let payload;
+  try {
+    payload = await upstream.json();
+  } catch {
+    throw new Error(`fflogs_${stage}_invalid_json`);
+  }
+  if (payload.errors?.length) throw new Error(`fflogs_${stage}_graphql`);
   return payload;
+}
+
+function fflogsSafeErrorCode(error) {
+  const message = String(error?.message || "");
+  if (/^fflogs_token_(400|401|403|missing)/.test(message))
+    return "fflogs_auth_failed";
+  if (/^fflogs_token_/.test(message)) return "fflogs_auth_unavailable";
+  if (/^fflogs_metadata_/.test(message)) return "fflogs_metadata_failed";
+  if (/^fflogs_rankings_/.test(message)) return "fflogs_rankings_failed";
+  return "fflogs_unavailable";
 }
 
 function fflogsRaidTiersFromMetadata(worldData) {
@@ -517,17 +544,27 @@ async function mapWithConcurrency(values, limit, mapper) {
 
 async function fflogsClientToken(clientId, clientSecret) {
   const credentials = btoa(`${clientId}:${clientSecret}`);
-  const response = await fetch(FFLOGS_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: "grant_type=client_credentials",
-  });
+  let response;
+  try {
+    response = await fetch(FFLOGS_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: "grant_type=client_credentials",
+    });
+  } catch {
+    throw new Error("fflogs_token_network");
+  }
   if (!response.ok) throw new Error(`fflogs_token_${response.status}`);
-  const body = await response.json();
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error("fflogs_token_invalid_json");
+  }
   if (!body.access_token) throw new Error("fflogs_token_missing");
   return body.access_token;
 }
@@ -726,4 +763,5 @@ export {
   fflogsEncounterLabel,
   fflogsEncounterPerformance,
   fflogsTierPerformanceRows,
+  fflogsSafeErrorCode,
 };

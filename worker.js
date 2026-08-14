@@ -44,9 +44,25 @@ const FFLOGS_SUMMARY_QUERY = `query CharacterSummary($name: String!, $serverSlug
     character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
       id
       name
-      dps: zoneRankings(metric: rdps) { bestPerformanceAverage medianPerformanceAverage }
-      hps: zoneRankings(metric: hps) { bestPerformanceAverage medianPerformanceAverage }
+      dps: zoneRankings(metric: rdps)
+      hps: zoneRankings(metric: hps)
     }
+  }
+}`;
+
+// FF LogsのゾーンID。各ゾーン内のエンカウントID・名称はWorldDataから取得し、
+// 4層の前半／後半を固定のボスIDへ依存せずに表示する。
+const FFLOGS_RAID_TIER_CATALOG = [
+  { key: "asphodelos", label: "万魔殿パンデモニウム零式：辺獄編", zoneId: 44 },
+  { key: "abyssos", label: "万魔殿パンデモニウム零式：煉獄編", zoneId: 49 },
+  { key: "anabaseios", label: "万魔殿パンデモニウム零式：天獄編", zoneId: 54 },
+  { key: "light-heavyweight", label: "至天の座アルカディア零式：ライトヘビー級", zoneId: 62 },
+  { key: "cruiserweight", label: "至天の座アルカディア零式：クルーザー級", zoneId: 68 },
+  { key: "heavyweight", label: "至天の座アルカディア零式：ヘビー級", zoneId: 73 },
+];
+const FFLOGS_ZONE_METADATA_QUERY = `query RaidTierMetadata {
+  worldData {
+    ${FFLOGS_RAID_TIER_CATALOG.map((tier) => `z${tier.zoneId}: zone(id: ${tier.zoneId}) { id name encounters { id name } }`).join("\n    ")}
   }
 }`;
 
@@ -61,6 +77,8 @@ export default {
       return handleAchievementDates(request, ctx);
     if (url.pathname === "/api/fflogs-summary")
       return handleFFLogsSummary(request, env, ctx);
+    if (url.pathname === "/api/fflogs-content-performance")
+      return handleFFLogsContentPerformance(request, env, ctx);
     if (url.pathname === "/api/lodestone-icon") return handleIcon(request, ctx);
     if (url.pathname === "/api/lodestone")
       return json({ error: "deprecated_endpoint" }, 410, "no-store");
@@ -327,6 +345,159 @@ async function handleFFLogsSummary(request, env, ctx) {
   }
 }
 
+async function handleFFLogsContentPerformance(request, env, ctx) {
+  const url = new URL(request.url);
+  const name = (url.searchParams.get("name") || "").trim().slice(0, 80);
+  const world = (url.searchParams.get("world") || "").trim().slice(0, 80);
+  const dataCenter = (url.searchParams.get("dc") || "").trim().toLowerCase();
+  if (!name || !world)
+    return json({ error: "missing_character" }, 400, "no-store");
+
+  const profileUrl = fflogsProfileUrl(name, world);
+  if (!env.FFLOGS_CLIENT_ID || !env.FFLOGS_CLIENT_SECRET) {
+    return json(
+      { configured: false, profile_url: profileUrl, tiers: [] },
+      200,
+      "no-store",
+    );
+  }
+
+  const cacheKey = new Request(url.toString(), request);
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const token = await fflogsClientToken(
+      env.FFLOGS_CLIENT_ID,
+      env.FFLOGS_CLIENT_SECRET,
+    );
+    const metadataPayload = await fflogsGraphQL(token, FFLOGS_ZONE_METADATA_QUERY);
+    const tiers = fflogsRaidTiersFromMetadata(metadataPayload.data?.worldData);
+    const performancePayload = await fflogsGraphQL(
+      token,
+      fflogsContentPerformanceQuery(tiers),
+      {
+        name,
+        serverSlug: fflogsServerSlug(world),
+        serverRegion: FFLOGS_DC_REGION[dataCenter] || "jp",
+      },
+    );
+    const character = performancePayload.data?.characterData?.character || null;
+    const response = json(
+      {
+        configured: true,
+        found: !!character,
+        profile_url: profileUrl,
+        tiers: fflogsTierPerformanceRows(tiers, character),
+        fetched_at: new Date().toISOString(),
+      },
+      200,
+      `public, max-age=${FFLOGS_TTL}`,
+    );
+    ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+    return response;
+  } catch {
+    return json(
+      {
+        configured: true,
+        found: false,
+        profile_url: profileUrl,
+        tiers: [],
+        error: "fflogs_unavailable",
+      },
+      200,
+      "no-store",
+    );
+  }
+}
+
+async function fflogsGraphQL(token, query, variables = {}) {
+  const upstream = await fetch(FFLOGS_GRAPHQL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!upstream.ok) throw new Error(`fflogs_${upstream.status}`);
+  const payload = await upstream.json();
+  if (payload.errors?.length) throw new Error("fflogs_graphql_error");
+  return payload;
+}
+
+function fflogsRaidTiersFromMetadata(worldData) {
+  return FFLOGS_RAID_TIER_CATALOG.map((tier) => {
+    const zone = worldData?.[`z${tier.zoneId}`];
+    const encounters = Array.isArray(zone?.encounters) ? zone.encounters : [];
+    return {
+      ...tier,
+      zoneName: String(zone?.name || tier.label),
+      encounters: encounters
+        .filter((encounter) => Number.isInteger(Number(encounter?.id)))
+        .map((encounter) => ({
+          id: Number(encounter.id),
+          name: String(encounter.name || ""),
+        })),
+    };
+  }).filter((tier) => tier.encounters.length > 0);
+}
+
+function fflogsContentPerformanceQuery(tiers) {
+  const selections = tiers.flatMap((tier) =>
+    tier.encounters.flatMap((encounter) => [
+      `dps_${tier.zoneId}_${encounter.id}: encounterRankings(encounterID: ${encounter.id}, metric: rdps, partition: -1)`,
+      `hps_${tier.zoneId}_${encounter.id}: encounterRankings(encounterID: ${encounter.id}, metric: hps, partition: -1)`,
+    ]),
+  );
+  return `query CharacterContentPerformance($name: String!, $serverSlug: String!, $serverRegion: String!) {
+    characterData {
+      character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
+        id
+        ${selections.join("\n        ")}
+      }
+    }
+  }`;
+}
+
+function fflogsEncounterLabel(index, total) {
+  if (total === 5 && index === 3) return "4層 前半";
+  if (total === 5 && index === 4) return "4層 後半";
+  return `${index + 1}層`;
+}
+
+function fflogsEncounterPerformance(value) {
+  const average = Number(value?.averagePerformance);
+  if (Number.isFinite(average)) return average;
+  const ranks = Array.isArray(value?.ranks) ? value.ranks : [];
+  const percentiles = ranks
+    .map((rank) => Number(rank?.rankPercent))
+    .filter((percentile) => Number.isFinite(percentile));
+  if (!percentiles.length) return null;
+  return percentiles.reduce((total, percentile) => total + percentile, 0) / percentiles.length;
+}
+
+function fflogsTierPerformanceRows(tiers, character) {
+  return tiers.map((tier) => ({
+    key: tier.key,
+    label: tier.label,
+    zone_id: tier.zoneId,
+    zone_name: tier.zoneName,
+    encounters: tier.encounters.map((encounter, index) => ({
+      id: encounter.id,
+      name: encounter.name,
+      label: fflogsEncounterLabel(index, tier.encounters.length),
+      dps: fflogsEncounterPerformance(
+        character?.[`dps_${tier.zoneId}_${encounter.id}`],
+      ),
+      hps: fflogsEncounterPerformance(
+        character?.[`hps_${tier.zoneId}_${encounter.id}`],
+      ),
+    })),
+  }));
+}
+
 async function mapWithConcurrency(values, limit, mapper) {
   const output = new Array(values.length);
   let next = 0;
@@ -550,4 +721,9 @@ export {
   fflogsServerSlug,
   fflogsProfileUrl,
   fflogsMetricSummary,
+  fflogsRaidTiersFromMetadata,
+  fflogsContentPerformanceQuery,
+  fflogsEncounterLabel,
+  fflogsEncounterPerformance,
+  fflogsTierPerformanceRows,
 };

@@ -470,13 +470,18 @@
       .high-end-entry {
         display: grid;
         grid-template-columns: 8px minmax(0, 1fr) auto;
+        grid-template-areas:
+          "mark name date"
+          "mark meta days";
         align-items: center;
-        gap: 7px;
-        padding: 5px 6px;
+        column-gap: 7px;
+        row-gap: 2px;
+        padding: 6px;
         border-radius: 5px;
         background: rgba(255, 255, 255, 0.025);
       }
       .high-end-entry i {
+        grid-area: mark;
         width: 7px;
         height: 7px;
         border: 1px solid var(--dim);
@@ -491,9 +496,18 @@
         box-shadow: 0 0 10px rgba(242, 193, 94, 0.48);
       }
       .high-end-name {
+        grid-area: name;
         overflow: hidden;
         color: var(--mist);
         font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .high-end-release {
+        grid-area: meta;
+        overflow: hidden;
+        color: var(--dim);
+        font: 9px var(--mono);
         text-overflow: ellipsis;
         white-space: nowrap;
       }
@@ -502,11 +516,20 @@
         font-weight: 750;
       }
       .high-end-date {
+        grid-area: date;
         color: var(--dim);
         font: 10px var(--mono);
         white-space: nowrap;
       }
-      .high-end-entry.complete .high-end-date {
+      .high-end-days {
+        grid-area: days;
+        color: var(--dim);
+        font: 9px var(--mono);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .high-end-entry.complete .high-end-date,
+      .high-end-entry.complete .high-end-days {
         color: var(--amber);
       }
       .fflogs-card {
@@ -553,6 +576,91 @@
       }
       .fflogs-status {
         margin: auto 0 0;
+        color: var(--dim);
+        font-size: 10px;
+        line-height: 1.45;
+      }
+      .fflogs-content-card {
+        margin-top: 12px;
+        padding: 11px;
+        border: 1px solid rgba(131, 182, 255, 0.26);
+        border-radius: 7px;
+        background: rgba(8, 6, 20, 0.3);
+      }
+      .fflogs-content-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 9px;
+        color: var(--mist);
+        font: 10px var(--mono);
+      }
+      .fflogs-content-head b {
+        color: var(--ice);
+        font-size: 12px;
+      }
+      .fflogs-tier-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(225px, 1fr));
+        gap: 8px;
+      }
+      .fflogs-tier {
+        min-width: 0;
+        padding: 8px;
+        border: 1px solid var(--edge-soft);
+        border-radius: 6px;
+        background: rgba(27, 20, 64, 0.34);
+      }
+      .fflogs-tier h4 {
+        margin: 0 0 6px;
+        color: var(--foam);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+      .fflogs-encounters {
+        display: grid;
+        gap: 4px;
+      }
+      .fflogs-encounter {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 6px;
+        padding: 5px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .fflogs-encounter-name {
+        min-width: 0;
+      }
+      .fflogs-encounter-name b,
+      .fflogs-encounter-name small {
+        display: block;
+      }
+      .fflogs-encounter-name b {
+        color: var(--mist);
+        font-size: 10px;
+      }
+      .fflogs-encounter-name small {
+        overflow: hidden;
+        color: var(--dim);
+        font: 8px var(--mono);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .fflogs-encounter-metric {
+        color: var(--mist);
+        font: 8px var(--mono);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .fflogs-encounter-metric strong {
+        color: var(--ice);
+        font: 800 12px var(--mono);
+      }
+      .fflogs-content-empty {
+        margin: 0;
         color: var(--dim);
         font-size: 10px;
         line-height: 1.45;
@@ -1284,11 +1392,6 @@
           Collectに登録された公開キャラクターのサンプルに基づく値です。全プレイヤーの公式統計ではありません。アチーブメントは公開設定の影響で、特にサンプルが小さくなります。
         </div>
         <section
-          class="combat-profile"
-          id="combatProfile"
-          aria-label="高難易度の踏破履歴とFF Logsパフォーマンス"
-        ></section>
-        <section
           class="collection-summary"
           id="collectionSummary"
           aria-label="マウント・ミニオンの条件別取得状況"
@@ -1302,7 +1405,8 @@
           <div class="tabs" id="kindTabs">
             <button class="on" data-kind="mounts">マウント</button
             ><button data-kind="minions">ミニオン</button
-            ><button data-kind="achievements">アチーブメント</button>
+            ><button data-kind="achievements">アチーブメント</button
+            ><button data-kind="combat">高難易度戦績</button>
           </div>
           <div class="seg" id="stateSeg">
             <button class="on" data-state="all">すべて</button
@@ -1341,6 +1445,11 @@
             <option value="premium">課金要素ありを先に</option></select
           ><span class="count" id="count"></span>
         </div>
+        <section
+          class="combat-profile"
+          id="combatProfile"
+          aria-label="高難易度の踏破履歴とFF Logsパフォーマンス"
+        ></section>
         <div class="grid" id="grid"></div>
       </main>
       <footer class="foot">
@@ -1368,103 +1477,49 @@
           RELAXED_MATCH_MIN_GAP = 2,
           MASTER_TTL = 864e5,
           el = (id) => document.getElementById(id);
+        // 実装日は日本時間のパッチ公開日。初回クリア日との差を暦日で表示する。
         const HIGH_END_CATALOG = [
           {
             category: "絶シリーズ",
             items: [
-              {
-                id: 1993,
-                name: "絶バハムート",
-                patch: "4.11",
-                title: "the Legend",
-              },
-              {
-                id: 2107,
-                name: "絶アルテマ",
-                patch: "4.31",
-                title: "the Ultimate Legend",
-              },
-              {
-                id: 2444,
-                name: "絶アレキ",
-                patch: "5.11",
-                title: "the Perfect Legend",
-              },
-              {
-                id: 3074,
-                name: "絶竜詩",
-                patch: "6.11",
-                title: "the Heavens' Legend",
-              },
-              {
-                id: 3162,
-                name: "絶オメガ",
-                patch: "6.31",
-                title: "the Alpha Legend",
-              },
-              {
-                id: 3617,
-                name: "絶エデン",
-                patch: "7.11",
-                title: "Genesis of Legend",
-              },
-              {
-                id: 4069,
-                name: "絶ケフカ",
-                patch: "7.51",
-                title: "Cruel Legend",
-              },
+              { id: 1993, name: "絶バハムート", patch: "4.11", released: "2017-10-24", title: "the Legend" },
+              { id: 2107, name: "絶アルテマ", patch: "4.31", released: "2018-06-05", title: "the Ultimate Legend" },
+              { id: 2444, name: "絶アレキ", patch: "5.11", released: "2019-11-12", title: "the Perfect Legend" },
+              { id: 3074, name: "絶竜詩", patch: "6.11", released: "2022-04-26", title: "the Heavens' Legend" },
+              { id: 3162, name: "絶オメガ", patch: "6.31", released: "2023-01-24", title: "the Alpha Legend" },
+              { id: 3617, name: "絶エデン", patch: "7.11", released: "2024-11-26", title: "Genesis of Legend" },
+              { id: 4069, name: "絶ケフカ", patch: "7.51", released: "2026-06-02", title: "Cruel Legend" },
             ],
           },
           {
             category: "黄金零式（至天の座アルカディア）",
             items: [
-              { id: 3575, name: "LH級", patch: "7.05" },
-              { id: 3630, name: "CR級", patch: "7.2" },
-              { id: 3868, name: "HV級", patch: "7.4" },
+              { id: 3575, name: "LH級", patch: "7.05", released: "2024-07-30" },
+              { id: 3630, name: "CR級", patch: "7.2", released: "2025-03-25" },
+              { id: 3868, name: "HV級", patch: "7.4", released: "2025-12-16" },
             ],
           },
           {
             category: "暁月零式（万魔殿パンデモニウム）",
             items: [
-              { id: 3038, name: "辺獄", patch: "6.05" },
-              { id: 3111, name: "煉獄", patch: "6.2" },
-              { id: 3251, name: "天獄", patch: "6.4" },
+              { id: 3038, name: "辺獄", patch: "6.05", released: "2022-01-04" },
+              { id: 3111, name: "煉獄", patch: "6.2", released: "2022-08-23" },
+              { id: 3251, name: "天獄", patch: "6.4", released: "2023-05-23" },
             ],
           },
           {
             category: "異聞零式",
             items: [
-              {
-                id: 3156,
-                name: "シラディハ",
-                patch: "6.25",
-                title: "Infamy of Sil'dih",
-              },
-              {
-                id: 3340,
-                name: "六根山",
-                patch: "6.45",
-                title: "Ascendant Ascetic",
-              },
-              {
-                id: 3350,
-                name: "アロアロ",
-                patch: "6.51",
-                title: "Force of Nature",
-              },
-              { id: 3428, name: "異聞零式三種", title: "Epic Hero" },
+              { id: 3156, name: "シラディハ", patch: "6.25", released: "2022-10-18", title: "Infamy of Sil'dih" },
+              { id: 3340, name: "六根山", patch: "6.45", released: "2023-07-18", title: "Ascendant Ascetic" },
+              { id: 3350, name: "アロアロ", patch: "6.51", released: "2023-10-31", title: "Force of Nature" },
+              { id: 3428, name: "異聞零式三種", released: "2023-10-31", title: "Epic Hero" },
             ],
           },
           {
             category: "詩想シリーズ（最大供物）",
             items: [
-              {
-                id: 3819,
-                name: "エミネントグリーフ",
-                patch: "7.35",
-                title: "the Mourner of Light",
-              },
+              { id: 3819, name: "エミネントグリーフ", patch: "7.35", released: "2025-10-07", title: "the Mourner of Light" },
             ],
           },
         ];
@@ -1817,7 +1872,7 @@
           renderCombatProfile();
           try {
             const response = await fetch(
-              `/api/fflogs-summary?name=${encodeURIComponent(character.name)}&world=${encodeURIComponent(character.server)}&dc=${encodeURIComponent(character.data_center || "")}`,
+              `/api/fflogs-content-performance?name=${encodeURIComponent(character.name)}&world=${encodeURIComponent(character.server)}&dc=${encodeURIComponent(character.data_center || "")}`,
             );
             if (!response.ok) throw Error(`fflogs_${response.status}`);
             state.fflogs = { status: "complete", data: await response.json() };
@@ -2111,6 +2166,42 @@
             day: "2-digit",
           }).format(new Date(seconds * 1000));
         }
+        const JST_DAY_PARTS = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Tokyo",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        function releaseDayStart(released) {
+          const parts = String(released || "")
+            .split("-")
+            .map((part) => Number(part));
+          if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part)))
+            return NaN;
+          return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+        }
+        function jstDayStart(timestamp) {
+          const seconds = Number(timestamp);
+          if (!Number.isFinite(seconds) || seconds <= 0) return NaN;
+          const values = Object.fromEntries(
+            JST_DAY_PARTS.formatToParts(new Date(seconds * 1000))
+              .filter((part) => part.type !== "literal")
+              .map((part) => [part.type, Number(part.value)]),
+          );
+          return Date.UTC(values.year, values.month - 1, values.day);
+        }
+        function daysFromRelease(released, timestamp) {
+          const start = releaseDayStart(released);
+          const complete = jstDayStart(timestamp);
+          if (!Number.isFinite(start) || !Number.isFinite(complete) || complete < start)
+            return null;
+          return Math.floor((complete - start) / 864e5);
+        }
+        function displayReleaseDate(released) {
+          return /^\d{4}-\d{2}-\d{2}$/.test(String(released || ""))
+            ? `実装 ${released.replaceAll("-", "/")}`
+            : "実装日未設定";
+        }
         function displayPercentile(value) {
           const numeric = Number(value);
           return Number.isFinite(numeric) ? numeric.toFixed(1) : "—";
@@ -2118,7 +2209,7 @@
         function renderCombatProfile() {
           const panel = el("combatProfile");
           const character = state.character || {};
-          if (!character.name) {
+          if (state.kind !== "combat" || !character.name) {
             panel.classList.remove("show");
             panel.innerHTML = "";
             return;
@@ -2126,9 +2217,9 @@
           const achievementReady = state.status.achievements === "complete";
           const dates = state.highEnd.dates || {};
           const total = HIGH_END_CATALOG.flatMap((group) => group.items).length;
-          const earned = HIGH_END_CATALOG.flatMap(
-            (group) => group.items,
-          ).filter((item) => state.owned.achievements.has(item.id)).length;
+          const earned = HIGH_END_CATALOG.flatMap((group) => group.items).filter(
+            (item) => state.owned.achievements.has(item.id),
+          ).length;
           const groups = HIGH_END_CATALOG.map((group) => {
             const groupEarned = group.items.filter((item) =>
               state.owned.achievements.has(item.id),
@@ -2136,38 +2227,63 @@
             const rows = group.items
               .map((item) => {
                 const complete = state.owned.achievements.has(item.id);
+                const timestamp = dates[item.id];
                 const date = complete
-                  ? dates[item.id]
-                    ? displayDate(dates[item.id])
+                  ? timestamp
+                    ? displayDate(timestamp)
                     : state.highEnd.status === "loading"
                       ? "達成日確認中"
                       : state.highEnd.status === "error"
                         ? "日時取得不可"
                         : "達成日未取得"
                   : "未達成";
+                const elapsed = timestamp
+                  ? daysFromRelease(item.released, timestamp)
+                  : null;
+                const days = complete
+                  ? elapsed === null
+                    ? timestamp
+                      ? "日数算出不可"
+                      : "日数算出待ち"
+                    : elapsed === 0
+                      ? "実装当日クリア"
+                      : `実装から${n(elapsed)}日`
+                  : "—";
                 const title = [
                   item.patch ? `Patch ${item.patch}` : "",
                   item.title || "",
+                  item.released ? `実装日 ${item.released}` : "",
                 ]
                   .filter(Boolean)
                   .join(" · ");
-                return `<div class="high-end-entry ${complete ? "complete" : ""}" title="${esc(title || item.name)}"><i aria-hidden="true"></i><span class="high-end-name">${esc(item.name)}</span><span class="high-end-date">${esc(date)}</span></div>`;
+                return `<div class="high-end-entry ${complete ? "complete" : ""}" title="${esc(title || item.name)}"><i aria-hidden="true"></i><span class="high-end-name">${esc(item.name)}</span><span class="high-end-release">${esc(displayReleaseDate(item.released))}</span><span class="high-end-date">${esc(date)}</span><span class="high-end-days">${esc(days)}</span></div>`;
               })
               .join("");
             return `<section class="high-end-group"><h3><span>${esc(group.category)}</span><small>${n(groupEarned)} / ${n(group.items.length)}</small></h3><div class="high-end-list">${rows}</div></section>`;
           }).join("");
           const fflogs = state.fflogs.data || {};
-          const profileUrl =
-            fflogs.profile_url || localFFLogsProfileUrl(character);
+          const profileUrl = fflogs.profile_url || localFFLogsProfileUrl(character);
           const fflogsStatus =
             state.fflogs.status === "loading"
               ? "FF Logsの公開戦績を確認中…"
               : !fflogs.configured
-                ? "平均パーフはFF Logs API認証情報の設定後に表示されます。プロフィールへのリンクは利用できます。"
+                ? "コンテンツ別の平均パーフはFF Logs API認証情報の設定後に表示されます。プロフィールへのリンクは利用できます。"
                 : fflogs.found
                   ? `API取得：${fflogs.fetched_at ? new Date(fflogs.fetched_at).toLocaleString("ja-JP") : "更新済み"}`
                   : "公開戦績を取得できませんでした。FF Logsのキャラクターページで詳細を確認できます。";
-          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${achievementReady ? `達成 ${n(earned)} / ${n(total)}` : "アチーブメント取得中"}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><div class="fflogs-metrics"><div class="fflogs-metric"><span>平均DPSパーフ</span><strong>${displayPercentile(fflogs.dps?.best)}</strong><small>best performance average</small></div><div class="fflogs-metric"><span>平均HPSパーフ</span><strong>${displayPercentile(fflogs.hps?.best)}</strong><small>best performance average</small></div></div><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div>`;
+          const completionLabel =
+            state.status.achievements === "error"
+              ? "アチーブメント取得不可"
+              : achievementReady
+                ? `達成 ${n(earned)} / ${n(total)}`
+                : "アチーブメント取得中";
+          const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
+          const tierMarkup = tiers.length
+            ? `<div class="fflogs-tier-grid">${tiers
+                .map((tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4><div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span><span class="fflogs-encounter-metric">DPS <strong>${displayPercentile(encounter.dps)}</strong></span><span class="fflogs-encounter-metric">HPS <strong>${displayPercentile(encounter.hps)}</strong></span></div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`)
+                .join("")}</div>`
+            : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
+          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-grid"><div class="high-end-groups">${groups}</div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside></div><section class="fflogs-content-card"><div class="fflogs-content-head"><b>コンテンツ別 平均パーフ</b><span>DPS／HPS・全パッチの公開戦績</span></div>${tierMarkup}</section>`;
           panel.classList.add("show");
         }
         function header() {
@@ -2237,33 +2353,55 @@
         function render() {
           const kind = state.kind,
             isAch = kind === "achievements",
+            isCombat = kind === "combat",
             status = state.status;
           document.querySelectorAll("#kindTabs button").forEach((b) => {
             b.classList.toggle("on", b.dataset.kind === kind);
             b.classList.toggle(
               "loading",
-              b.dataset.kind === "achievements" &&
-                status.achievements === "loading",
+              (b.dataset.kind === "achievements" &&
+                status.achievements === "loading") ||
+                (b.dataset.kind === "combat" &&
+                  state.highEnd.status === "loading"),
             );
           });
+          [
+            "stateSeg",
+            "viewSeg",
+            "q",
+            "source",
+            "market",
+            "availability",
+            "premium",
+            "sort",
+            "count",
+          ].forEach((id) => el(id).classList.toggle("hidden", isCombat));
           ["market", "availability", "premium"].forEach((id) =>
-            el(id).classList.toggle("hidden", isAch),
+            el(id).classList.toggle("hidden", isCombat || isAch),
           );
           el("source").classList.toggle(
             "hidden",
-            isAch && status.achievements !== "complete",
+            isCombat || (isAch && status.achievements !== "complete"),
           );
           ["market", "availability", "premium"].forEach((value) =>
             el("sort")
               .querySelector(`option[value="${value}"]`)
-              .toggleAttribute("hidden", isAch),
+              .toggleAttribute("hidden", isAch || isCombat),
           );
           if (
-            isAch &&
+            (isAch || isCombat) &&
             ["market", "availability", "premium"].includes(state.filter.sort)
           ) {
             state.filter.sort = "patch";
             el("sort").value = "patch";
+          }
+          renderCombatProfile();
+          if (isCombat) {
+            renderAchievementSummary([], new Set());
+            renderCollectionSummary([], new Set());
+            el("grid").classList.remove("compact");
+            el("grid").innerHTML = "";
+            return;
           }
           if (isAch && status.achievements !== "complete") {
             renderAchievementSummary([], new Set());

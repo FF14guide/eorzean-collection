@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>エオルゼア蒐集図鑑 — 所持チェッカー</title>
+    <title>エオルゼア蒐集図鑑</title>
     <meta
       name="description"
-      content="ロードストーンの公開情報から、登録不要でFFXIVのマウント、ミニオン、アチーブメントを一度に照合します。"
+      content="FFXIVのコレクション、高難易度の討伐日、FF Logsパーフをまとめて確認できるエオルゼア蒐集図鑑。"
     />
     <meta name="theme-color" content="#0f0a20" />
     <link rel="canonical" href="https://collection.eorzeanfishing.com/" />
@@ -702,6 +702,11 @@
         text-align: right;
         white-space: nowrap;
       }
+      .fflogs-encounter-metric em {
+        font-style: normal;
+      }
+      .fflogs-encounter-metric.metric-dps em { color: var(--magenta); }
+      .fflogs-encounter-metric.metric-hps em { color: var(--ice); }
       .fflogs-encounter-metric strong {
         color: var(--ice);
         font: 800 12px var(--mono);
@@ -1491,12 +1496,10 @@
     </header>
     <div class="wrap">
       <section class="hero">
-        <p class="eyebrow">EORZEA COLLECTION LEDGER</p>
-        <h1>マウント／ミニオン／アチーブメント<br />所持チェッカー</h1>
+        <p class="eyebrow">EORZEA COLLECTION ATLAS</p>
+        <h1>エオルゼア蒐集図鑑</h1>
         <p class="lede">
-          ロードストーンIDを一度入力するだけで、公開中のマウント・ミニオンを先に表示し、続けてアチーブメントを取得します。<strong
-            >FFXIV Collectへのキャラクター登録は不要</strong
-          >です。
+          マウント、ミニオン、アチーブメント、高難易度の討伐日、FF Logsパーフをまとめて確認できます。
         </p>
         <div class="search">
           <label for="cid"
@@ -2357,7 +2360,8 @@
         function fflogsMetricMarkup(label, value) {
           const display = displayPercentile(value);
           const parseClass = fflogsParseClass(value);
-          return `<span class="fflogs-encounter-metric">${esc(label)} <strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
+          const metricClass = String(label).startsWith("HPS") ? "metric-hps" : "metric-dps";
+          return `<span class="fflogs-encounter-metric ${metricClass}"><em>${esc(label)}</em><strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
         }
         function fflogsTierClearMarkup(tierKey, dates) {
           const item = HIGH_END_CATALOG.flatMap((group) => group.items).find(
@@ -2452,7 +2456,7 @@
                 ? `達成 ${n(earned)} / ${n(total)}`
                 : "アチーブメント取得中";
           const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
-          const renderTierCard = (tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}${fflogsMetricMarkup("DPS最高", encounter.dps_best)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`;
+          const renderTierCard = (tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS最高", encounter.dps_best)}${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`;
           const tierByKey = new Map(tiers.map((tier) => [tier.key, tier]));
           const eraDefinitions = [
             { label: "暁月零式", versions: "6.0 / 6.2 / 6.4", tierKeys: ["asphodelos", "abyssos", "anabaseios"] },
@@ -2469,7 +2473,7 @@
           const tierMarkup = tiers.length
             ? `<div class="fflogs-era-list">${eraMarkup}${otherMarkup}</div>`
             : `<p class="fflogs-content-empty">${!fflogs.configured ? "コンテンツ別パーフはFF Logs API認証情報の設定後に表示されます。" : fflogs.found ? "公開パーフはまだ取得できませんでした。" : "公開戦績を取得できませんでした。"}</p>`;
-          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS平均／最高・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
+          panel.innerHTML = `<div class="combat-profile-head"><b>高難易度戦績</b><span>${completionLabel}</span></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS最高／平均・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
           panel.classList.add("show");
         }
         function header() {
@@ -2504,7 +2508,7 @@
                 ? ring(0, "アチーブ", "要確認", "取得不可", "ga", true)
                 : ring(0, "アチーブ", "…", "取得中", "ga", true);
           el("charcard").innerHTML =
-            `<svg width="0" height="0"><defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#948ae8"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#948ae8"/></linearGradient></defs></svg>${portrait}<div class="who"><div class="name">${esc(c.name || "キャラクター")}</div><div class="meta">${esc(c.server || "")} ${c.data_center ? "[" + esc(c.data_center) + "]" : ""}</div><div class="detail">公開ロードストーンを利用した登録不要の所持判定</div></div><div class="rings">${ring(pm, "マウント", Math.round(pm) + "%", `${n(om)} / ${n(tm)}`, "gm", false)}${ring(pi, "ミニオン", Math.round(pi) + "%", `${n(oi)} / ${n(ti)}`, "gi", false)}${ach}</div>`;
+            `<svg width="0" height="0"><defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#948ae8"/><stop offset="1" stop-color="#e7b83f"/></linearGradient><linearGradient id="ga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5cd8e0"/><stop offset="1" stop-color="#948ae8"/></linearGradient></defs></svg>${portrait}<div class="who"><div class="name">${esc(c.name || "キャラクター")}</div><div class="meta">${esc(c.server || "")} ${c.data_center ? "[" + esc(c.data_center) + "]" : ""}</div><div class="detail">ロードストーンの公開コレクション・アチーブメントを参照</div></div><div class="rings">${ring(pm, "マウント", Math.round(pm) + "%", `${n(om)} / ${n(tm)}`, "gm", false)}${ring(pi, "ミニオン", Math.round(pi) + "%", `${n(oi)} / ${n(ti)}`, "gi", false)}${ach}</div>`;
           requestAnimationFrame(() =>
             requestAnimationFrame(() =>
               el("charcard")

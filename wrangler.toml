@@ -6,3 +6,17 @@ compatibility_date = "2025-05-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+# 新パッチ候補を4時間ごとに取得する。CronはUTCで実行される。
+[triggers]
+crons = ["17 */4 * * *"]
+
+# 自動同期の公開カタログ・候補・監査ログ・スナップショットを強整合に保持する。
+[[durable_objects.bindings]]
+name = "HIGH_END_CATALOG"
+class_name = "HighEndCatalogStore"
+
+# 新規SQLite Durable Object。Point-in-Time Recoveryを含む復旧可能な永続領域を使う。
+[exports.HighEndCatalogStore]
+type = "durable-object"
+storage = "sqlite"

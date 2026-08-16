@@ -451,6 +451,13 @@
       .combat-profile-actions {
         justify-content: flex-end;
       }
+      .auto-catalog-status {
+        color: var(--dim);
+        border-left: 1px solid var(--edge-soft);
+        padding-left: 8px;
+        font: 9px/1.25 var(--mono);
+        white-space: nowrap;
+      }
       .combat-profile-head b {
         color: var(--foam);
         font-size: 13px;
@@ -1349,6 +1356,12 @@
           align-items: flex-start;
           flex-direction: column;
         }
+        .auto-catalog-status {
+          border-left: 0;
+          border-top: 1px solid var(--edge-soft);
+          padding: 5px 0 0;
+          white-space: normal;
+        }
         .combat-profile-actions {
           width: 100%;
           justify-content: flex-start;
@@ -1757,6 +1770,7 @@
           character: null,
           lodestoneId: "",
           shareMode: false,
+          autoCatalog: { groups: [], status: { state: "loading", message: "自動同期情報を確認中…" } },
           status: {
             collections: "idle",
             achievements: "idle",
@@ -2059,8 +2073,40 @@
           state.status.achievements = "complete";
           await loadHighEndHistory(id);
         }
+        function highEndCatalog() {
+          const base = HIGH_END_CATALOG.map((group) => ({ ...group, items: [...group.items] }));
+          const knownIds = new Set(base.flatMap((group) => group.items).map((item) => Number(item.id)));
+          const extras = Array.isArray(state.autoCatalog?.groups) ? state.autoCatalog.groups : [];
+          const byCategory = new Map(base.map((group) => [group.category, group]));
+          for (const group of extras) {
+            const category = String(group?.category || "自動追加：高難易度");
+            const target = byCategory.get(category) || { category, items: [] };
+            for (const item of Array.isArray(group?.items) ? group.items : []) {
+              const id = Number(item?.id);
+              if (!Number.isInteger(id) || knownIds.has(id)) continue;
+              target.items.push({ ...item, id });
+              knownIds.add(id);
+            }
+            byCategory.set(category, target);
+          }
+          return [...byCategory.values()].filter((group) => group.items.length);
+        }
+        async function loadAutoHighEndCatalog() {
+          try {
+            const response = await fetch("/api/high-end-catalog");
+            if (!response.ok) throw Error(`auto_catalog_${response.status}`);
+            const payload = await response.json();
+            state.autoCatalog = {
+              groups: Array.isArray(payload?.groups) ? payload.groups : [],
+              status: payload?.status || { state: "unavailable", message: "自動同期の状態を取得できませんでした。" },
+            };
+          } catch {
+            state.autoCatalog = { groups: [], status: { state: "unavailable", message: "自動同期情報を取得できませんでした。既存カタログを表示しています。" } };
+          }
+        }
         async function loadHighEndHistory(id) {
-          const ownedIds = HIGH_END_CATALOG.flatMap((group) => group.items)
+          await loadAutoHighEndCatalog();
+          const ownedIds = highEndCatalog().flatMap((group) => group.items)
             .map((item) => item.id)
             .filter((achievementId) =>
               state.owned.achievements.has(achievementId),
@@ -2455,7 +2501,7 @@
           return `<span class="fflogs-encounter-metric ${metricClass}"><em>${esc(label)}</em><strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
         }
         function fflogsTierClearMarkup(tierKey, dates) {
-          const item = HIGH_END_CATALOG.flatMap((group) => group.items).find(
+          const item = highEndCatalog().flatMap((group) => group.items).find(
             (candidate) => candidate.fflogsTier === tierKey,
           );
           if (!item) return "";
@@ -2479,13 +2525,14 @@
           }
           const achievementReady = state.status.achievements === "complete";
           const dates = state.highEnd.dates || {};
-          const total = HIGH_END_CATALOG.flatMap((group) => group.items).length;
-          const earned = HIGH_END_CATALOG.flatMap((group) => group.items).filter(
+          const catalog = highEndCatalog();
+          const total = catalog.flatMap((group) => group.items).length;
+          const earned = catalog.flatMap((group) => group.items).filter(
             (item) => state.owned.achievements.has(item.id),
           ).length;
           // 零式6シリーズはFF Logsカード内へ討伐日と一体表示するため、
           // ここには絶・異聞零式・詩想のみを残してコンテンツ名の重複を避ける。
-          const historyGroups = HIGH_END_CATALOG.map((group) => ({
+          const historyGroups = catalog.map((group) => ({
             ...group,
             items: group.items.filter((item) => !item.fflogsTier),
           })).filter((group) => group.items.length);
@@ -2540,6 +2587,12 @@
                 : fflogs.found
                   ? `API取得：${fflogs.fetched_at ? new Date(fflogs.fetched_at).toLocaleString("ja-JP") : "更新済み"}`
                   : "公開戦績を取得できませんでした。FF Logsのキャラクターページで詳細を確認できます。";
+          const autoStatus = state.autoCatalog?.status || {};
+          const autoLabel = autoStatus.state === "verified" || autoStatus.state === "verified_with_quarantine"
+            ? `自動同期：${autoStatus.last_success_at ? new Date(autoStatus.last_success_at).toLocaleString("ja-JP") : "確認済み"}${autoStatus.quarantined ? `（隔離 ${n(autoStatus.quarantined)}件）` : ""}`
+            : autoStatus.state === "checking"
+              ? "自動同期：確認中"
+              : "自動同期：既存カタログを表示";
           const completionLabel =
             state.status.achievements === "error"
               ? "アチーブメント取得不可"
@@ -2572,7 +2625,7 @@
             : state.lodestoneId
               ? '<button class="share-copy" type="button" data-copy-share-url>共有URLをコピー</button>'
               : "";
-          panel.innerHTML = `<div class="combat-profile-head"><div class="combat-profile-title"><b>高難易度戦績</b><span>${completionLabel}</span></div><div class="combat-profile-actions">${shareAction}</div></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS最高／平均・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
+          panel.innerHTML = `<div class="combat-profile-head"><div class="combat-profile-title"><b>高難易度戦績</b><span>${completionLabel}</span><small class="auto-catalog-status" title="${esc(autoStatus.message || "")}">${esc(autoLabel)}</small></div><div class="combat-profile-actions">${shareAction}</div></div><aside class="fflogs-card"><h3><span>FF Logs パフォーマンス</span><small>公開戦績</small></h3><a class="fflogs-link" href="${esc(profileUrl)}" target="_blank" rel="noopener">FF Logsプロフィールを開く →</a><p class="fflogs-status">${esc(fflogsStatus)}</p></aside><section class="fflogs-content-card"><div class="fflogs-content-head"><b>零式：討伐日・パーフ</b><span>DPS最高／平均・HPS平均・全パッチの公開戦績</span></div>${tierMarkup}</section>${groups ? `<div class="combat-profile-grid"><div class="high-end-groups">${groups}</div></div>` : ""}`;
           panel.querySelector("[data-copy-share-url]")?.addEventListener("click", (event) => {
             copyShareUrl(event.currentTarget);
           });
@@ -2913,7 +2966,6 @@
           try {
             await loadCollections(id);
             showBoard();
-            void loadFFLogsSummary(state.character);
             state.status.achievements = "loading";
             header();
             render();
@@ -2927,6 +2979,7 @@
             }
             header();
             render();
+            void loadFFLogsSummary(state.character);
             progress(
               state.status.achievements === "complete"
                 ? "すべての所持状況を取得しました。"

@@ -24,6 +24,16 @@ const ACHIEVEMENT_DATE_TTL = 24 * 60 * 60;
 const FFLOGS_TTL = 6 * 60 * 60;
 const ACHIEVEMENT_PAGES_PER_REQUEST = 10;
 const MAX_HIGH_END_ACHIEVEMENTS = 24;
+const AUTO_CATALOG_TTL = 15 * 60;
+const AUTO_UPDATE_MIN_INTERVAL = 4 * 60 * 60 * 1000;
+const AUTO_CONFIRMATION_INTERVAL = 4 * 60 * 60 * 1000;
+const AUTO_MAX_PROMOTIONS_PER_RUN = 4;
+const AUTO_SNAPSHOT_LIMIT = 12;
+const AUTO_SOURCE_TIMEOUT = 12000;
+const AUTO_PATCH_TOPIC_URL = "https://jp.finalfantasyxiv.com/lodestone/topics/?page=1";
+const AUTO_ACHIEVEMENTS_URL = "https://ffxivcollect.com/api/achievements?language=ja";
+const AUTO_ACHIEVEMENTS_EN_URL = "https://ffxivcollect.com/api/achievements?language=en";
+const AUTO_BASELINE_ACHIEVEMENT_IDS = new Set([1993, 2107, 2444, 3038, 3074, 3111, 3156, 3162, 3251, 3340, 3350, 3428, 3575, 3617, 3630, 3819, 3868, 4069]);
 const FFLOGS_TOKEN_URL = "https://www.fflogs.com/oauth/token";
 const FFLOGS_GRAPHQL_URL = "https://www.fflogs.com/api/v2/client";
 const FFLOGS_DC_REGION = {
@@ -79,12 +89,40 @@ export default {
       return handleFFLogsSummary(request, env, ctx);
     if (url.pathname === "/api/fflogs-content-performance")
       return handleFFLogsContentPerformance(request, env, ctx);
+    if (url.pathname === "/api/high-end-catalog")
+      return handleHighEndCatalog(env);
+    if (url.pathname === "/api/admin/auto-update/run" || url.pathname === "/api/admin/auto-update/rollback")
+      return handleAutoUpdateAdmin(request, env, url.pathname.endsWith("/rollback") ? "rollback" : "run");
     if (url.pathname === "/api/lodestone-icon") return handleIcon(request, ctx);
     if (url.pathname === "/api/lodestone")
       return json({ error: "deprecated_endpoint" }, 410, "no-store");
     return env.ASSETS.fetch(request);
   },
+  async scheduled(_controller, env, ctx) {
+    if (!env.HIGH_END_CATALOG) return;
+    const store = env.HIGH_END_CATALOG.getByName("global");
+    ctx.waitUntil(store.fetch(new Request("https://auto-catalog.internal/run", { method: "POST" })));
+  },
 };
+
+async function handleHighEndCatalog(env) {
+  if (!env.HIGH_END_CATALOG)
+    return json({ groups: [], status: { state: "unconfigured" } }, 200, "no-store");
+  const store = env.HIGH_END_CATALOG.getByName("global");
+  const response = await store.fetch(new Request("https://auto-catalog.internal/catalog"));
+  const payload = await response.json();
+  return json(payload, 200, `public, max-age=${AUTO_CATALOG_TTL}`);
+}
+
+async function handleAutoUpdateAdmin(request, env, action) {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, "no-store");
+  if (!env.AUTO_UPDATE_ADMIN_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.AUTO_UPDATE_ADMIN_TOKEN}`)
+    return json({ error: "unauthorized" }, 401, "no-store");
+  if (!env.HIGH_END_CATALOG) return json({ error: "unconfigured" }, 503, "no-store");
+  const path = action === "rollback" ? "/rollback" : "/run";
+  const response = await env.HIGH_END_CATALOG.getByName("global").fetch(new Request(`https://auto-catalog.internal${path}`, { method: "POST" }));
+  return new Response(response.body, { status: response.status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+}
 
 async function handleCollections(request, ctx) {
   const url = new URL(request.url);
@@ -371,13 +409,20 @@ async function handleFFLogsContentPerformance(request, env, ctx) {
       env.FFLOGS_CLIENT_ID,
       env.FFLOGS_CLIENT_SECRET,
     );
+    const tierCatalog = fflogsMergeTierCatalog(
+      FFLOGS_RAID_TIER_CATALOG,
+      await getAutoFFLogsTiers(env),
+    );
     const metadataPayload = await fflogsGraphQL(
       token,
-      FFLOGS_ZONE_METADATA_QUERY,
+      fflogsZoneMetadataQuery(tierCatalog),
       {},
       "metadata",
     );
-    const tiers = fflogsRaidTiersFromMetadata(metadataPayload.data?.worldData);
+    const tiers = fflogsRaidTiersFromMetadata(
+      metadataPayload.data?.worldData,
+      tierCatalog,
+    );
     if (!tiers.length) throw new Error("fflogs_metadata_empty");
     const performancePayload = await fflogsGraphQL(
       token,
@@ -454,8 +499,22 @@ function fflogsSafeErrorCode(error) {
   return "fflogs_unavailable";
 }
 
-function fflogsRaidTiersFromMetadata(worldData) {
-  return FFLOGS_RAID_TIER_CATALOG.map((tier) => {
+function fflogsZoneMetadataQuery(catalog = FFLOGS_RAID_TIER_CATALOG) {
+  return `query RaidTierMetadata {\n  worldData {\n    ${catalog.map((tier) => `z${tier.zoneId}: zone(id: ${tier.zoneId}) { id name encounters { id name } }`).join("\\n    ")}\n  }\n}`;
+}
+
+function fflogsMergeTierCatalog(baseCatalog, autoCatalog) {
+  const map = new Map((baseCatalog || []).map((tier) => [Number(tier.zoneId), tier]));
+  for (const tier of autoCatalog || []) {
+    const zoneId = Number(tier?.zoneId);
+    if (!Number.isInteger(zoneId) || zoneId <= 0 || map.has(zoneId)) continue;
+    map.set(zoneId, { key: String(tier.key), label: String(tier.label), zoneId });
+  }
+  return [...map.values()];
+}
+
+function fflogsRaidTiersFromMetadata(worldData, catalog = FFLOGS_RAID_TIER_CATALOG) {
+  return catalog.map((tier) => {
     const zone = worldData?.[`z${tier.zoneId}`];
     const encounters = Array.isArray(zone?.encounters) ? zone.encounters : [];
     return {
@@ -758,6 +817,375 @@ function decodeHtml(value) {
     .replace(/&#0?39;|&#x27;/gi, "'");
 }
 
+export class HighEndCatalogStore {
+  constructor(ctx, env) {
+    this.ctx = ctx;
+    this.env = env;
+  }
+
+  async getPublicCatalog() {
+    const groups = await this.ctx.storage.get("active_groups");
+    const status = await this.ctx.storage.get("status");
+    return {
+      groups: sanitizeAutoGroups(groups),
+      status: sanitizeAutoStatus(status),
+    };
+  }
+
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    if (path === "/catalog") return json(await this.getPublicCatalog());
+    if (path === "/fflogs-tiers") return json(await this.getFFLogsTiers());
+    if (path === "/run" && request.method === "POST") return json(await this.runAutoUpdate());
+    if (path === "/rollback" && request.method === "POST") return json({ rolled_back: await this.rollbackLatest() });
+    return json({ error: "not_found" }, 404);
+  }
+
+  async getFFLogsTiers() {
+    const groups = sanitizeAutoGroups(await this.ctx.storage.get("active_groups"));
+    return groups
+      .flatMap((group) => group.items || [])
+      .filter((item) => item.fflogsTier && Number.isInteger(Number(item.fflogsZoneId)))
+      .map((item) => ({
+        key: String(item.fflogsTier),
+        label: String(item.fflogsLabel || item.name),
+        zoneId: Number(item.fflogsZoneId),
+      }));
+  }
+
+  async runAutoUpdate() {
+    if (this.running) return { skipped: true, reason: "in_memory_lock" };
+    this.running = true;
+    const now = Date.now();
+    const previous = sanitizeAutoStatus(await this.ctx.storage.get("status"));
+    const lease = await this.ctx.storage.get("run_lease");
+    if (lease?.started_at && now - Date.parse(lease.started_at) < AUTO_SOURCE_TIMEOUT * 4) {
+      this.running = false;
+      return { skipped: true, reason: "lease_active" };
+    }
+    if (previous.last_started_at && now - Date.parse(previous.last_started_at) < AUTO_UPDATE_MIN_INTERVAL) {
+      this.running = false;
+      return { skipped: true, reason: "minimum_interval" };
+    }
+    await this.ctx.storage.put("run_lease", { started_at: new Date(now).toISOString() });
+    await this.ctx.storage.put("status", {
+      ...previous,
+      state: "checking",
+      last_started_at: new Date(now).toISOString(),
+    });
+
+    try {
+        const sources = await fetchAutoCatalogSources(this.env);
+        const activeGroups = sanitizeAutoGroups(await this.ctx.storage.get("active_groups"));
+        const activeIds = new Set(activeGroups.flatMap((group) => group.items || []).map((item) => Number(item.id)));
+        const pending = (await this.ctx.storage.get("pending_candidates")) || {};
+        const audit = Array.isArray(await this.ctx.storage.get("audit_log")) ? await this.ctx.storage.get("audit_log") : [];
+        const promoted = [];
+        const rejected = [];
+        const candidates = autoHighEndCandidates(sources.patchDocument);
+
+        for (const candidate of candidates) {
+          const key = autoCandidateKey(candidate);
+          const match = autoMatchAchievement(candidate, sources.achievementsEn, sources.achievementsJa);
+          const date = autoPatchReleaseDate(sources.patchDocument?.publishedAt);
+          if (!date || !match || AUTO_BASELINE_ACHIEVEMENT_IDS.has(Number(match.id)) || activeIds.has(Number(match.id))) {
+            rejected.push({ key, reason: !date ? "release_date_unverified" : !match ? "achievement_unverified" : "already_known" });
+            delete pending[key];
+            continue;
+          }
+
+          let fflogs = null;
+          if (candidate.kind === "savage") {
+            fflogs = autoMatchFFLogsZone(candidate, sources.fflogsZones);
+            if (!fflogs) {
+              rejected.push({ key, reason: "fflogs_zone_unverified" });
+              delete pending[key];
+              continue;
+            }
+          }
+
+          const fingerprint = autoCandidateFingerprint(candidate, match, date, fflogs);
+          const prior = pending[key];
+          const confirmedAgain = prior && prior.fingerprint === fingerprint && now - Date.parse(prior.first_seen_at) >= AUTO_CONFIRMATION_INTERVAL;
+          if (!confirmedAgain) {
+            pending[key] = { fingerprint, first_seen_at: prior?.fingerprint === fingerprint ? prior.first_seen_at : new Date(now).toISOString(), last_seen_at: new Date(now).toISOString(), observed: Number(prior?.observed || 0) + 1 };
+            continue;
+          }
+
+          promoted.push(autoCatalogItem(candidate, match, date, fflogs, sources.patchDocument));
+          delete pending[key];
+        }
+
+        if (promoted.length > AUTO_MAX_PROMOTIONS_PER_RUN) throw new Error("promotion_limit_exceeded");
+        const nextGroups = mergeAutoGroups(activeGroups, promoted);
+        if (promoted.length) {
+          const snapshots = Array.isArray(await this.ctx.storage.get("snapshots")) ? await this.ctx.storage.get("snapshots") : [];
+          snapshots.unshift({ at: new Date(now).toISOString(), groups: activeGroups });
+          await this.ctx.storage.put("snapshots", snapshots.slice(0, AUTO_SNAPSHOT_LIMIT));
+          await this.ctx.storage.put("active_groups", nextGroups);
+        }
+
+        const status = {
+          state: rejected.length ? "verified_with_quarantine" : "verified",
+          last_started_at: new Date(now).toISOString(),
+          last_success_at: new Date(now).toISOString(),
+          last_patch: sources.patchDocument?.patch || null,
+          last_patch_url: sources.patchDocument?.url || null,
+          promoted: promoted.length,
+          quarantined: rejected.length,
+          message: promoted.length ? `${promoted.length}件を連続検証後に自動追加しました。` : rejected.length ? "候補は検証不足のため隔離し、公開カタログは変更しませんでした。" : "追加対象は検出されませんでした。",
+        };
+        audit.unshift({ at: status.last_success_at, patch: status.last_patch, promoted: promoted.map((item) => ({ id: item.id, name: item.name })), quarantined: rejected.slice(0, 12) });
+        await this.ctx.storage.put("pending_candidates", pending);
+        await this.ctx.storage.put("status", status);
+        await this.ctx.storage.put("audit_log", audit.slice(0, 48));
+        return status;
+    } catch (error) {
+        const status = {
+          ...previous,
+          state: "source_error",
+          last_started_at: new Date(now).toISOString(),
+          last_error_at: new Date(now).toISOString(),
+          message: `自動同期は安全停止しました: ${autoSafeError(error)}`,
+        };
+        await this.ctx.storage.put("status", status);
+        return status;
+    } finally {
+      await this.ctx.storage.delete("run_lease");
+      this.running = false;
+    }
+  }
+
+  async rollbackLatest() {
+    const snapshots = Array.isArray(await this.ctx.storage.get("snapshots")) ? await this.ctx.storage.get("snapshots") : [];
+    const snapshot = snapshots.shift();
+    if (!snapshot) return false;
+    await this.ctx.storage.put("active_groups", sanitizeAutoGroups(snapshot.groups));
+    await this.ctx.storage.put("snapshots", snapshots);
+    await this.ctx.storage.put("status", { state: "rolled_back", last_success_at: new Date().toISOString(), message: "直前の自動追加をロールバックしました。" });
+    return true;
+  }
+}
+
+async function getAutoFFLogsTiers(env) {
+  if (!env.HIGH_END_CATALOG) return [];
+  try {
+    const response = await env.HIGH_END_CATALOG.getByName("global").fetch(new Request("https://auto-catalog.internal/fflogs-tiers"));
+    if (!response.ok) return [];
+    const payload = await response.json();
+    return Array.isArray(payload) ? payload : [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchAutoCatalogSources(env) {
+  const topicIndex = await autoFetchText(AUTO_PATCH_TOPIC_URL);
+  const paths = [...new Set([...topicIndex.matchAll(/\/lodestone\/topics\/detail\/([a-f0-9]{32,})/gi)].map((match) => match[0]))].slice(0, 12);
+  const pages = await Promise.all(paths.map(async (path) => {
+    try {
+      const html = await autoFetchText(`https://jp.finalfantasyxiv.com${path}`);
+      return autoOfficialPatchDocument(html, `https://jp.finalfantasyxiv.com${path}`);
+    } catch {
+      return null;
+    }
+  }));
+  const patchDocument = pages.filter(Boolean).sort((a, b) => String(b.publishedAt || "").localeCompare(String(a.publishedAt || "")))[0] || null;
+  if (!patchDocument) throw new Error("official_patch_note_not_found");
+  const patchQuery = `&patch_eq=${encodeURIComponent(patchDocument.patch)}`;
+  const [jaPayload, enPayload] = await Promise.all([autoFetchJson(`${AUTO_ACHIEVEMENTS_URL}${patchQuery}`), autoFetchJson(`${AUTO_ACHIEVEMENTS_EN_URL}${patchQuery}`)]);
+  const achievementsJa = Array.isArray(jaPayload?.results) ? jaPayload.results : [];
+  const achievementsEn = Array.isArray(enPayload?.results) ? enPayload.results : [];
+  if (!achievementsJa.length || !achievementsEn.length) throw new Error("ffxivcollect_achievements_unavailable");
+  return { patchDocument, achievementsJa, achievementsEn, fflogsZones: await autoFetchFFLogsZones(env) };
+}
+
+function autoTimeout(promise, label) {
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label}_timeout`)), AUTO_SOURCE_TIMEOUT);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+async function autoFetchText(url) {
+  const controller = new AbortController();
+  try {
+    const response = await autoTimeout(fetch(url, { headers: { "User-Agent": USER_AGENT, "Accept-Language": "ja,en;q=0.8", Accept: "text/html" }, signal: controller.signal }), "html_fetch");
+    if (!response.ok) throw new Error(`source_http_${response.status}`);
+    return autoTimeout(response.text(), "html_body");
+  } finally {
+    controller.abort();
+  }
+}
+
+async function autoFetchJson(url) {
+  const controller = new AbortController();
+  try {
+    const response = await autoTimeout(fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" }, signal: controller.signal }), "json_fetch");
+    if (!response.ok) throw new Error(`source_http_${response.status}`);
+    return autoTimeout(response.json(), "json_body");
+  } finally {
+    controller.abort();
+  }
+}
+
+function autoOfficialPatchDocument(html, url) {
+  const title = decodeHtml((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "").replace(/<[^>]*>/g, " ").trim();
+  const patchMatch = title.match(/(?:Patch|パッチ)\s*(\d+\.\d+)/i);
+  if (!patchMatch || !/(?:patch\s*\d+\.\d+\s*notes|パッチノート)/i.test(title)) return null;
+  const dates = [...html.matchAll(/\b(20\d{2})[\/.\-](\d{1,2})[\/.\-](\d{1,2})\b/g)].map((match) => `${match[1]}-${String(match[2]).padStart(2, "0")}-${String(match[3]).padStart(2, "0")}`);
+  return { patch: patchMatch[1], title, url, publishedAt: dates[0] || null, text: autoPlainText(html) };
+}
+
+function autoPlainText(html) {
+  return decodeHtml(String(html || "").replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ")).trim();
+}
+
+function autoHighEndCandidates(document) {
+  if (!document?.text || !document?.patch) return [];
+  const found = [];
+  const patterns = [
+    /The high-end duty\s+(.{2,120}?)\s+has been added\./gi,
+    /(?:The\s+)?(.{2,120}?\((?:Criterion\s+)?Savage\))\s+has been added\./gi,
+    /高難易度コンテンツ[「\s]+(.{2,120}?)[」\s]+(?:が追加|を追加)/gi,
+    /(?:新たな|新しい)\s*(.{2,120}?(?:零式|異聞零式))\s*が追加されました/gi,
+  ];
+  for (const pattern of patterns) for (const match of document.text.matchAll(pattern)) {
+    const name = String(match[1] || "").trim();
+    const kind = autoHighEndKind(name);
+    if (kind) found.push({ name, kind, patch: document.patch, sourceUrl: document.url });
+  }
+  const unique = new Map();
+  found.forEach((candidate) => unique.set(autoCandidateKey(candidate), candidate));
+  return [...unique.values()];
+}
+
+function autoHighEndKind(name) {
+  const value = String(name || "");
+  if (/\bultimate\b|（絶）|\(絶\)|絶/.test(value.toLowerCase()) || /絶/.test(value)) return "ultimate";
+  if (/criterion\s+savage|異聞零式/i.test(value)) return "criterion";
+  if (/\bsavage\b|零式/i.test(value)) return "savage";
+  if (/詩想|unreal/i.test(value)) return "poetic";
+  return null;
+}
+
+function autoMatchAchievement(candidate, achievementsEn, achievementsJa) {
+  const jaById = new Map((achievementsJa || []).map((row) => [Number(row?.id), row]));
+  const patch = String(candidate?.patch || "");
+  const target = autoTokenSet(candidate?.name);
+  const raidRows = (achievementsEn || []).filter((row) => String(row?.patch || "") === patch && /battle/i.test(String(row?.type?.name || "")) && /raid/i.test(String(row?.category?.name || "")));
+  const scored = raidRows
+    .map((row) => ({ row, score: autoTokenScore(target, `${row?.name || ""} ${row?.description || ""} ${row?.reward?.title?.name || ""}`) }))
+    .filter((entry) => entry.score >= 2)
+    .sort((a, b) => b.score - a.score);
+  let selected = !scored.length || (scored[1] && scored[0].score === scored[1].score) ? null : scored[0].row;
+
+  // 絶・異聞零式・零式は、同パッチの「バトル/レイド」かつ称号報酬の達成が一意である場合だけ補助照合する。
+  // 複数候補がある場合は必ずnullを返し、公開せず隔離する。
+  if (!selected) {
+    const titleRewards = raidRows.filter((row) => row?.reward?.type === "Title" && String(row?.reward?.title?.name || "").trim());
+    const japaneseCandidates = titleRewards.map((row) => jaById.get(Number(row.id))).filter(Boolean).filter((row) => {
+      const name = String(row?.name || "");
+      if (candidate.kind === "ultimate") return /絶/.test(name);
+      if (candidate.kind === "criterion") return /異聞/.test(name);
+      if (candidate.kind === "savage") return !/絶|異聞/.test(name);
+      return false;
+    });
+    if (japaneseCandidates.length === 1) selected = titleRewards.find((row) => Number(row.id) === Number(japaneseCandidates[0].id)) || null;
+  }
+  if (!selected) return null;
+  return jaById.get(Number(selected.id)) || null;
+}
+
+function autoTokenSet(value) {
+  return [...new Set(String(value || "").toLowerCase().replace(/\([^)]*\)|（[^）]*）/g, " ").replace(/[^a-z0-9ぁ-んァ-ン一-龯]+/gi, " ").split(/\s+/).filter((token) => token.length >= 3))];
+}
+
+function autoTokenScore(tokens, value) {
+  const normalized = String(value || "").toLowerCase();
+  return tokens.reduce((score, token) => score + (normalized.includes(token) ? 1 : 0), 0);
+}
+
+function autoPatchReleaseDate(value) {
+  return /^20\d{2}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : null;
+}
+
+async function autoFetchFFLogsZones(env) {
+  if (!env?.FFLOGS_CLIENT_ID || !env?.FFLOGS_CLIENT_SECRET) return [];
+  try {
+    const token = await fflogsClientToken(env.FFLOGS_CLIENT_ID, env.FFLOGS_CLIENT_SECRET);
+    const payload = await fflogsGraphQL(token, "query AutoZoneDiscovery { worldData { zones { id name encounters { id name } } } }", {}, "zone_discovery");
+    const zones = payload?.data?.worldData?.zones;
+    return Array.isArray(zones) ? zones.filter((zone) => Number.isInteger(Number(zone?.id)) && Array.isArray(zone?.encounters)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function autoMatchFFLogsZone(candidate, zones) {
+  const tokens = autoTokenSet(candidate?.name);
+  const scored = (zones || []).map((zone) => ({ zone, score: autoTokenScore(tokens, `${zone?.name || ""} ${(zone?.encounters || []).map((encounter) => encounter?.name || "").join(" ")}`) })).filter((entry) => entry.score >= 2).sort((a, b) => b.score - a.score);
+  if (!scored.length || (scored[1] && scored[0].score === scored[1].score)) return null;
+  const zoneId = Number(scored[0].zone.id);
+  if (!Number.isInteger(zoneId) || zoneId <= 0 || !Array.isArray(scored[0].zone.encounters) || scored[0].zone.encounters.length < 4) return null;
+  return { key: `auto-zone-${zoneId}`, label: String(scored[0].zone.name || candidate.name), zoneId };
+}
+
+function autoCandidateKey(candidate) {
+  return `${candidate?.patch || ""}|${candidate?.kind || ""}|${String(candidate?.name || "").toLowerCase()}`;
+}
+
+function autoCandidateFingerprint(candidate, achievement, released, fflogs) {
+  return JSON.stringify({ key: autoCandidateKey(candidate), id: Number(achievement?.id), released, fflogs: fflogs ? { key: fflogs.key, zoneId: fflogs.zoneId } : null });
+}
+
+function autoCatalogItem(candidate, achievement, released, fflogs, document) {
+  return {
+    id: Number(achievement.id),
+    name: String(achievement.name || candidate.name),
+    patch: String(candidate.patch),
+    released,
+    title: String(achievement?.reward?.title?.name || ""),
+    category: autoCatalogCategory(candidate.kind),
+    fflogsTier: fflogs?.key || "",
+    fflogsZoneId: Number(fflogs?.zoneId) || null,
+    fflogsLabel: String(fflogs?.label || ""),
+    auto: true,
+    source_url: String(document?.url || candidate.sourceUrl || ""),
+    verified_at: new Date().toISOString(),
+  };
+}
+
+function autoCatalogCategory(kind) {
+  return ({ ultimate: "自動追加：絶シリーズ", savage: "自動追加：零式", criterion: "自動追加：異聞零式", poetic: "自動追加：詩想シリーズ" })[kind] || "自動追加：高難易度";
+}
+
+function mergeAutoGroups(groups, items) {
+  const map = new Map(sanitizeAutoGroups(groups).map((group) => [group.category, { ...group, items: [...group.items] }]));
+  for (const item of items) {
+    const category = String(item.category || "自動追加：高難易度");
+    const group = map.get(category) || { category, items: [] };
+    if (!group.items.some((existing) => Number(existing.id) === Number(item.id))) group.items.push(item);
+    map.set(category, group);
+  }
+  return [...map.values()].map((group) => ({ ...group, items: group.items.sort((a, b) => Number(a.id) - Number(b.id)) }));
+}
+
+function sanitizeAutoGroups(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((group) => ({ category: String(group?.category || "自動追加：高難易度"), items: Array.isArray(group?.items) ? group.items.filter((item) => Number.isInteger(Number(item?.id)) && Number(item.id) > 0 && /^20\d{2}-\d{2}-\d{2}$/.test(String(item?.released || ""))).map((item) => ({ ...item, id: Number(item.id) })) : [] })).filter((group) => group.items.length);
+}
+
+function sanitizeAutoStatus(value) {
+  const raw = value && typeof value === "object" ? value : {};
+  return { state: String(raw.state || "not_synced"), last_started_at: raw.last_started_at || null, last_success_at: raw.last_success_at || null, last_error_at: raw.last_error_at || null, last_patch: raw.last_patch || null, last_patch_url: raw.last_patch_url || null, promoted: Number(raw.promoted || 0), quarantined: Number(raw.quarantined || 0), message: String(raw.message || "自動同期は未実行です。") };
+}
+
+function autoSafeError(error) {
+  return String(error?.message || "unknown_error").replace(/[^a-z0-9_\-:.]/gi, "").slice(0, 80) || "unknown_error";
+}
+
 function json(value, status = 200, cacheControl = "no-store") {
   return new Response(JSON.stringify(value), {
     status,
@@ -785,4 +1213,12 @@ export {
   fflogsEncounterBestPerformance,
   fflogsTierPerformanceRows,
   fflogsSafeErrorCode,
+  fflogsZoneMetadataQuery,
+  fflogsMergeTierCatalog,
+  autoOfficialPatchDocument,
+  autoHighEndCandidates,
+  autoMatchAchievement,
+  autoMatchFFLogsZone,
+  mergeAutoGroups,
+  sanitizeAutoGroups,
 };

@@ -49,6 +49,35 @@ const FFLOGS_DC_REGION = {
   light: "EU",
   materia: "OC",
 };
+const FFLOGS_JOB_CATALOG = {
+  paladin: { label: "ナイト", short: "PLD", icon: "paladin" },
+  monk: { label: "モンク", short: "MNK", icon: "monk" },
+  warrior: { label: "戦士", short: "WAR", icon: "warrior" },
+  dragoon: { label: "竜騎士", short: "DRG", icon: "dragoon" },
+  bard: { label: "吟遊詩人", short: "BRD", icon: "bard" },
+  whitemage: { label: "白魔道士", short: "WHM", icon: "whitemage" },
+  blackmage: { label: "黒魔道士", short: "BLM", icon: "blackmage" },
+  summoner: { label: "召喚士", short: "SMN", icon: "summoner" },
+  scholar: { label: "学者", short: "SCH", icon: "scholar" },
+  ninja: { label: "忍者", short: "NIN", icon: "ninja" },
+  machinist: { label: "機工士", short: "MCH", icon: "machinist" },
+  darkknight: { label: "暗黒騎士", short: "DRK", icon: "darkknight" },
+  astrologian: { label: "占星術師", short: "AST", icon: "astrologian" },
+  samurai: { label: "侍", short: "SAM", icon: "samurai" },
+  redmage: { label: "赤魔道士", short: "RDM", icon: "redmage" },
+  bluemage: { label: "青魔道士", short: "BLU", icon: "bluemage" },
+  gunbreaker: { label: "ガンブレイカー", short: "GNB", icon: "gunbreaker" },
+  dancer: { label: "踊り子", short: "DNC", icon: "dancer" },
+  reaper: { label: "リーパー", short: "RPR", icon: "reaper" },
+  sage: { label: "賢者", short: "SGE", icon: "sage" },
+  viper: { label: "ヴァイパー", short: "VPR", icon: "viper" },
+  pictomancer: { label: "ピクトマンサー", short: "PCT", icon: "pictomancer" },
+  beastmaster: { label: "獣使い", short: "BST", icon: "beastmaster" },
+};
+const FFLOGS_JOB_ID_TO_KEY = { 19: "paladin", 20: "monk", 21: "warrior", 22: "dragoon", 23: "bard", 24: "whitemage", 25: "blackmage", 27: "summoner", 28: "scholar", 30: "ninja", 31: "machinist", 32: "darkknight", 33: "astrologian", 34: "samurai", 35: "redmage", 36: "bluemage", 37: "gunbreaker", 38: "dancer", 39: "reaper", 40: "sage", 41: "viper", 42: "pictomancer", 43: "beastmaster" };
+const FFLOGS_JOB_ALIAS_TO_KEY = Object.fromEntries(
+  Object.entries(FFLOGS_JOB_CATALOG).map(([key, job]) => [job.short.toLowerCase(), key]),
+);
 const FFLOGS_SUMMARY_QUERY = `query CharacterSummary($name: String!, $serverSlug: String!, $serverRegion: String!) {
   characterData {
     character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
@@ -559,6 +588,38 @@ function fflogsPercentileValues(value) {
     .filter((percentile) => Number.isFinite(percentile));
 }
 
+function fflogsRankJob(rank) {
+  const raw = rank?.class ?? rank?.spec ?? rank?.job ?? "";
+  const numericKey = Number(raw);
+  const normalized = String(raw).toLowerCase().replace(/[^a-z]/g, "");
+  const key = Number.isInteger(numericKey) && FFLOGS_JOB_ID_TO_KEY[numericKey]
+    ? FFLOGS_JOB_ID_TO_KEY[numericKey]
+    : FFLOGS_JOB_ALIAS_TO_KEY[normalized] || normalized;
+  const job = FFLOGS_JOB_CATALOG[key];
+  return job
+    ? { key, label: job.label, short: job.short, icon_url: `https://xivapi.com/cj/1/${job.icon}.png` }
+    : null;
+}
+
+function fflogsEncounterJob(value, mode = "frequent") {
+  const ranks = Array.isArray(value?.ranks) ? value.ranks : [];
+  const candidates = ranks
+    .map((rank) => ({ job: fflogsRankJob(rank), percentile: Number(rank?.rankPercent) }))
+    .filter((candidate) => candidate.job);
+  if (!candidates.length) return fflogsRankJob(value);
+  if (mode === "best") {
+    return candidates.sort((a, b) => b.percentile - a.percentile)[0].job;
+  }
+  const counts = new Map();
+  for (const candidate of candidates) {
+    const current = counts.get(candidate.job.key) || { ...candidate.job, count: 0, best: -1 };
+    current.count += 1;
+    current.best = Math.max(current.best, Number.isFinite(candidate.percentile) ? candidate.percentile : -1);
+    counts.set(candidate.job.key, current);
+  }
+  return [...counts.values()].sort((a, b) => b.count - a.count || b.best - a.best)[0] || null;
+}
+
 function fflogsEncounterPerformance(value) {
   const average = Number(value?.averagePerformance);
   if (Number.isFinite(average)) return average;
@@ -594,10 +655,20 @@ function fflogsTierPerformanceRows(tiers, character) {
       dps: fflogsEncounterPerformance(
         character?.[`dps_${tier.zoneId}_${encounter.id}`],
       ),
+      dps_job: fflogsEncounterJob(
+        character?.[`dps_${tier.zoneId}_${encounter.id}`],
+      ),
       dps_best: fflogsEncounterBestPerformance(
         character?.[`dps_${tier.zoneId}_${encounter.id}`],
       ),
+      dps_best_job: fflogsEncounterJob(
+        character?.[`dps_${tier.zoneId}_${encounter.id}`],
+        "best",
+      ),
       hps: fflogsEncounterPerformance(
+        character?.[`hps_${tier.zoneId}_${encounter.id}`],
+      ),
+      hps_job: fflogsEncounterJob(
         character?.[`hps_${tier.zoneId}_${encounter.id}`],
       ),
     })),
@@ -1211,6 +1282,8 @@ export {
   fflogsEncounterLabel,
   fflogsEncounterPerformance,
   fflogsEncounterBestPerformance,
+  fflogsRankJob,
+  fflogsEncounterJob,
   fflogsTierPerformanceRows,
   fflogsSafeErrorCode,
   fflogsZoneMetadataQuery,

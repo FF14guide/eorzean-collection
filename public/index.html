@@ -772,10 +772,10 @@
       }
       .fflogs-encounter-metric {
         display: grid;
-        grid-template-columns: auto auto;
+        grid-template-columns: auto 13px auto;
         align-items: baseline;
         column-gap: 2px;
-        min-width: 47px;
+        min-width: 61px;
         color: var(--mist);
         font: 8px var(--mono);
         text-align: right;
@@ -789,6 +789,25 @@
       .fflogs-encounter-metric strong {
         color: var(--ice);
         font: 800 12px var(--mono);
+      }
+      .fflogs-job-icon {
+        display: inline-grid;
+        width: 13px;
+        height: 13px;
+        place-items: center;
+        align-self: center;
+        overflow: hidden;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, .07);
+        color: var(--dim);
+        font: 7px var(--mono);
+        line-height: 1;
+      }
+      .fflogs-job-icon img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
       }
       .fflogs-parse-bar {
         grid-column: 1 / -1;
@@ -2494,11 +2513,19 @@
           const numeric = Number(value);
           return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)).toFixed(1) : "0";
         }
-        function fflogsMetricMarkup(label, value) {
+        function fflogsJobIconMarkup(job) {
+          const label = job?.label && job?.short ? `${job.label}（${job.short}）` : "ジョブ情報なし";
+          const image = job?.icon_url
+            ? `<img src="${esc(job.icon_url)}" alt="${esc(job.short || job.label || "ジョブ")}" loading="lazy">`
+            : "—";
+          return `<span class="fflogs-job-icon" title="${esc(label)}">${image}</span>`;
+        }
+        function fflogsMetricMarkup(label, value, job) {
           const display = displayPercentile(value);
           const parseClass = fflogsParseClass(value);
           const metricClass = String(label).startsWith("HPS") ? "metric-hps" : "metric-dps";
-          return `<span class="fflogs-encounter-metric ${metricClass}"><em>${esc(label)}</em><strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
+          const jobLabel = job?.label ? `／${job.label}` : "";
+          return `<span class="fflogs-encounter-metric ${metricClass}"><em>${esc(label)}</em>${fflogsJobIconMarkup(job)}<strong class="${parseClass}" title="FF Logs パーフ ${esc(display)}${esc(jobLabel)}">${esc(display)}</strong><span class="fflogs-parse-bar ${parseClass}" style="--parse-width:${fflogsParseWidth(value)}%" aria-hidden="true"><i></i></span></span>`;
         }
         function fflogsTierClearMarkup(tierKey, dates) {
           const item = highEndCatalog().flatMap((group) => group.items).find(
@@ -2600,7 +2627,7 @@
                 ? `達成 ${n(earned)} / ${n(total)}`
                 : "アチーブメント取得中";
           const tiers = Array.isArray(fflogs.tiers) ? fflogs.tiers : [];
-          const renderTierCard = (tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS最高", encounter.dps_best)}${fflogsMetricMarkup("DPS平均", encounter.dps)}${fflogsMetricMarkup("HPS平均", encounter.hps)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`;
+          const renderTierCard = (tier) => `<section class="fflogs-tier"><h4>${esc(tier.label || tier.zone_name || "零式")}</h4>${fflogsTierClearMarkup(tier.key, dates)}<div class="fflogs-encounters">${(tier.encounters || []).map((encounter) => `<div class="fflogs-encounter"><span class="fflogs-encounter-name"><b>${esc(encounter.label || "—")}</b><small>${esc(encounter.name || "")}</small></span>${fflogsMetricMarkup("DPS最高", encounter.dps_best, encounter.dps_best_job)}${fflogsMetricMarkup("DPS平均", encounter.dps, encounter.dps_job)}${fflogsMetricMarkup("HPS平均", encounter.hps, encounter.hps_job)}</div>`).join("") || '<p class="fflogs-content-empty">公開パーフなし</p>'}</div></section>`;
           const tierByKey = new Map(tiers.map((tier) => [tier.key, tier]));
           const eraDefinitions = [
             { label: "暁月零式", versions: "6.0 / 6.2 / 6.4", tierKeys: ["asphodelos", "abyssos", "anabaseios"] },

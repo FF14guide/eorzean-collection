@@ -500,7 +500,7 @@ function fflogsSafeErrorCode(error) {
 }
 
 function fflogsZoneMetadataQuery(catalog = FFLOGS_RAID_TIER_CATALOG) {
-  return `query RaidTierMetadata {\n  worldData {\n    ${catalog.map((tier) => `z${tier.zoneId}: zone(id: ${tier.zoneId}) { id name encounters { id name } }`).join("\\n    ")}\n  }\n}`;
+  return `query RaidTierMetadata {\n  worldData {\n    ${catalog.map((tier) => `z${tier.zoneId}: zone(id: ${tier.zoneId}) { id name encounters { id name } }`).join("\n    ")}\n  }\n}`;
 }
 
 function fflogsMergeTierCatalog(baseCatalog, autoCatalog) {
